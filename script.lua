@@ -190,72 +190,80 @@ ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
 ScreenGui.ResetOnSpawn = false
 
--- === БАННЕР С АНИМАЦИЕЙ ===
+-- === БАННЕР С ЧЁРНЫМ ФОНОМ И БОЛЬШИМИ УГЛАМИ ===
 BannerFrame.Parent = ScreenGui
-BannerFrame.Size = UDim2.new(0, 300, 0, 150)
-BannerFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
-BannerFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-BannerFrame.BackgroundTransparency = 0.05
+BannerFrame.Size = UDim2.new(0, 320, 0, 180)
+BannerFrame.Position = UDim2.new(0.5, -160, 0.5, -90)
+BannerFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BannerFrame.BackgroundTransparency = 0
 local bannerCorner = Instance.new("UICorner", BannerFrame)
-bannerCorner.CornerRadius = UDim.new(0, 20)
+bannerCorner.CornerRadius = UDim.new(0, 40)
 local bannerStroke = Instance.new("UIStroke", BannerFrame)
 bannerStroke.Color = Color3.fromRGB(255, 100, 0)
-bannerStroke.Thickness = 2
+bannerStroke.Thickness = 3
 
 BannerText.Parent = BannerFrame
 BannerText.Size = UDim2.new(1, 0, 1, 0)
 BannerText.Text = "<font color='rgb(255,50,50)'>SS</font>akenchik"
 BannerText.TextColor3 = Color3.fromRGB(255, 255, 255)
-BannerText.TextSize = 35
+BannerText.TextSize = 40
 BannerText.Font = Enum.Font.GothamBold
 BannerText.RichText = true
+BannerText.BackgroundTransparency = 1
 
 -- === МЕНЮ (видимо сразу) ===
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 350, 0, 550)
+MenuFrame.Size = UDim2.new(0, 380, 0, 600)
 MenuFrame.Position = UDim2.new(0.02, 0, 0.1, 0)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MenuFrame.Active = true
 MenuFrame.Draggable = true
 MenuFrame.Visible = false
 local menuCorner = Instance.new("UICorner", MenuFrame)
-menuCorner.CornerRadius = UDim.new(0, 15)
+menuCorner.CornerRadius = UDim.new(0, 20)
 local menuStroke = Instance.new("UIStroke", MenuFrame)
 menuStroke.Color = Color3.fromRGB(100, 150, 255)
-menuStroke.Thickness = 2
+menuStroke.Thickness = 3
 
 -- Верхняя панель с кнопкой сворачивания
 TopBar.Parent = MenuFrame
-TopBar.Size = UDim2.new(1, 0, 0, 50)
-TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+TopBar.Size = UDim2.new(1, 0, 0, 60)
+TopBar.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
 local topCorner = Instance.new("UICorner", TopBar)
-topCorner.CornerRadius = UDim.new(0, 15)
+topCorner.CornerRadius = UDim.new(0, 20)
 local topGradient = Instance.new("UIGradient", TopBar)
 topGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 50, 100)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 40))
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 80, 200)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(30, 60, 150)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 40, 100))
 })
+local topStroke = Instance.new("UIStroke", TopBar)
+topStroke.Color = Color3.fromRGB(150, 180, 255)
+topStroke.Thickness = 2
 
 Title.Parent = TopBar
-Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Size = UDim2.new(1, -60, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Text = "⚡ BULBA HUB PRO ⚡"
-Title.TextColor3 = Color3.fromRGB(100, 200, 255)
-Title.TextSize = 18
+Title.TextColor3 = Color3.fromRGB(150, 220, 255)
+Title.TextSize = 20
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
 MinimizeBtn.Parent = TopBar
-MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
-MinimizeBtn.Position = UDim2.new(1, -45, 0, 5)
+MinimizeBtn.Size = UDim2.new(0, 45, 0, 45)
+MinimizeBtn.Position = UDim2.new(1, -50, 0, 7)
 MinimizeBtn.Text = "−"
-MinimizeBtn.TextSize = 28
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-MinimizeBtn.BackgroundTransparency = 0.5
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+MinimizeBtn.TextSize = 32
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 120, 100)
+MinimizeBtn.BackgroundTransparency = 0.4
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 30)
 local minCorner = Instance.new("UICorner", MinimizeBtn)
-minCorner.CornerRadius = UDim.new(0, 8)
+minCorner.CornerRadius = UDim.new(0, 10)
+local minStroke = Instance.new("UIStroke", MinimizeBtn)
+minStroke.Color = Color3.fromRGB(200, 100, 100)
+minStroke.Thickness = 2
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     MenuFrame.Visible = false
@@ -264,71 +272,81 @@ end)
 
 -- Панель вкладок
 TabBar.Parent = MenuFrame
-TabBar.Size = UDim2.new(1, 0, 0, 50)
-TabBar.Position = UDim2.new(0, 0, 0, 50)
-TabBar.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+TabBar.Size = UDim2.new(1, 0, 0, 55)
+TabBar.Position = UDim2.new(0, 0, 0, 60)
+TabBar.BackgroundColor3 = Color3.fromRGB(12, 12, 25)
 
 ComboTab.Parent = TabBar
 ComboTab.Size = UDim2.new(0.33, 0, 1, 0)
 ComboTab.Position = UDim2.new(0, 0, 0, 0)
 ComboTab.Text = "🎯 AIMBOT"
-ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+ComboTab.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
 ComboTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 ComboTab.Font = Enum.Font.GothamBold
 ComboTab.TextScaled = true
 local comboCorner = Instance.new("UICorner", ComboTab)
 comboCorner.CornerRadius = UDim.new(0, 0)
+local comboStroke = Instance.new("UIStroke", ComboTab)
+comboStroke.Color = Color3.fromRGB(100, 255, 100)
+comboStroke.Thickness = 2
 
 VisualTab.Parent = TabBar
 VisualTab.Size = UDim2.new(0.33, 0, 1, 0)
 VisualTab.Position = UDim2.new(0.33, 0, 0, 0)
 VisualTab.Text = "👁️ ESP"
-VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-VisualTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+VisualTab.TextColor3 = Color3.fromRGB(180, 180, 200)
 VisualTab.Font = Enum.Font.GothamBold
 VisualTab.TextScaled = true
 local visualCorner = Instance.new("UICorner", VisualTab)
 visualCorner.CornerRadius = UDim.new(0, 0)
+local visualStroke = Instance.new("UIStroke", VisualTab)
+visualStroke.Color = Color3.fromRGB(100, 100, 150)
+visualStroke.Thickness = 1
 
 ExtraTab.Parent = TabBar
 ExtraTab.Size = UDim2.new(0.34, 0, 1, 0)
 ExtraTab.Position = UDim2.new(0.66, 0, 0, 0)
 ExtraTab.Text = "⚙️ EXTRA"
-ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-ExtraTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+ExtraTab.TextColor3 = Color3.fromRGB(180, 180, 200)
 ExtraTab.Font = Enum.Font.GothamBold
 ExtraTab.TextScaled = true
 local extraCorner = Instance.new("UICorner", ExtraTab)
 extraCorner.CornerRadius = UDim.new(0, 0)
+local extraStroke = Instance.new("UIStroke", ExtraTab)
+extraStroke.Color = Color3.fromRGB(100, 100, 150)
+extraStroke.Thickness = 1
 
 -- Скроллинг
 ScrollingFrame.Parent = MenuFrame
-ScrollingFrame.Size = UDim2.new(1, -20, 1, -115)
-ScrollingFrame.Position = UDim2.new(0, 10, 0, 105)
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -135)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 120)
 ScrollingFrame.BackgroundTransparency = 1
-ScrollingFrame.ScrollBarThickness = 5
+ScrollingFrame.ScrollBarThickness = 6
+ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 255)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 -- === ФУНКЦИИ СОЗДАНИЯ UI ===
 local function MakeSwitch(text, getter, setter)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 60)
+    btn.Size = UDim2.new(1, -10, 0, 70)
     btn.Text = text .. ": " .. (getter() and "🟢 ON" or "🔴 OFF")
-    btn.BackgroundColor3 = getter() and Color3.fromRGB(10, 80, 10) or Color3.fromRGB(50, 40, 40)
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(15, 90, 15) or Color3.fromRGB(60, 35, 35)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.Gotham
     btn.TextScaled = true
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 12)
+    corner.CornerRadius = UDim.new(0, 15)
     local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = getter() and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(150, 50, 50)
+    stroke.Color = getter() and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 80, 80)
     stroke.Thickness = 2
     
     btn.MouseButton1Click:Connect(function()
         setter(not getter())
         btn.Text = text .. ": " .. (getter() and "🟢 ON" or "🔴 OFF")
-        btn.BackgroundColor3 = getter() and Color3.fromRGB(10, 80, 10) or Color3.fromRGB(50, 40, 40)
-        stroke.Color = getter() and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(150, 50, 50)
+        btn.BackgroundColor3 = getter() and Color3.fromRGB(15, 90, 15) or Color3.fromRGB(60, 35, 35)
+        stroke.Color = getter() and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 80, 80)
     end)
     
     btn.Parent = ScrollingFrame
@@ -337,32 +355,35 @@ end
 
 local function MakeSlider(text, min, max, getter, setter)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -10, 0, 95)
-    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    frame.Size = UDim2.new(1, -10, 0, 110)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
     local fCorner = Instance.new("UICorner", frame)
-    fCorner.CornerRadius = UDim.new(0, 12)
+    fCorner.CornerRadius = UDim.new(0, 15)
     local fStroke = Instance.new("UIStroke", frame)
-    fStroke.Color = Color3.fromRGB(100, 150, 255)
-    fStroke.Thickness = 1
+    fStroke.Color = Color3.fromRGB(120, 170, 255)
+    fStroke.Thickness = 2
     
     local label = Instance.new("TextLabel", frame)
-    label.Size = UDim2.new(1, 0, 0, 35)
+    label.Size = UDim2.new(1, 0, 0, 40)
     label.Text = text .. ": " .. math.floor(getter())
-    label.TextColor3 = Color3.fromRGB(100, 200, 255)
+    label.TextColor3 = Color3.fromRGB(120, 200, 255)
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.GothamBold
     label.TextScaled = true
     
     local slider = Instance.new("TextButton", frame)
-    slider.Size = UDim2.new(1, -20, 0, 35)
-    slider.Position = UDim2.new(0, 10, 0, 50)
-    slider.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
+    slider.Size = UDim2.new(1, -20, 0, 40)
+    slider.Position = UDim2.new(0, 10, 0, 60)
+    slider.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
     local sliderCorner = Instance.new("UICorner", slider)
     sliderCorner.CornerRadius = UDim.new(1, 0)
     slider.Text = ""
+    local sliderStroke = Instance.new("UIStroke", slider)
+    sliderStroke.Color = Color3.fromRGB(100, 150, 255)
+    sliderStroke.Thickness = 1
     
     local fill = Instance.new("Frame", slider)
-    fill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    fill.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
     local fillCorner = Instance.new("UICorner", fill)
     fillCorner.CornerRadius = UDim.new(1, 0)
     
@@ -433,25 +454,31 @@ local function selectTab(tab)
     combotContainer.Visible = false
     visualContainer.Visible = false
     extraContainer.Visible = false
-    ComboTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    ComboTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-    VisualTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-    ExtraTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ComboTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+    ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+    ComboTab.TextColor3 = Color3.fromRGB(180, 180, 200)
+    VisualTab.TextColor3 = Color3.fromRGB(180, 180, 200)
+    ExtraTab.TextColor3 = Color3.fromRGB(180, 180, 200)
+    comboStroke.Color = Color3.fromRGB(100, 100, 150)
+    visualStroke.Color = Color3.fromRGB(100, 100, 150)
+    extraStroke.Color = Color3.fromRGB(100, 100, 150)
     
     if tab == "COMBOT" then
         combotContainer.Visible = true
-        ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        ComboTab.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
         ComboTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+        comboStroke.Color = Color3.fromRGB(100, 255, 100)
     elseif tab == "VISUAL" then
         visualContainer.Visible = true
         VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
         VisualTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+        visualStroke.Color = Color3.fromRGB(100, 200, 255)
     elseif tab == "EXTRA" then
         extraContainer.Visible = true
-        ExtraTab.BackgroundColor3 = Color3.fromRGB(150, 100, 0)
+        ExtraTab.BackgroundColor3 = Color3.fromRGB(180, 120, 0)
         ExtraTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+        extraStroke.Color = Color3.fromRGB(255, 200, 100)
     end
 end
 
@@ -462,26 +489,28 @@ selectTab("COMBOT")
 
 -- === ИКОНКА S (с правильным Draggable) ===
 FloatingIcon.Parent = ScreenGui
-FloatingIcon.Size = UDim2.new(0, 60, 0, 60)
+FloatingIcon.Size = UDim2.new(0, 70, 0, 70)
 FloatingIcon.Position = UDim2.new(0.02, 0, 0.05, 0)
 FloatingIcon.Text = "S"
-FloatingIcon.TextSize = 32
+FloatingIcon.TextSize = 38
 FloatingIcon.Font = Enum.Font.GothamBold
 FloatingIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-FloatingIcon.BackgroundColor3 = Color3.fromRGB(100, 50, 200)
+FloatingIcon.BackgroundColor3 = Color3.fromRGB(120, 60, 200)
 FloatingIcon.BackgroundTransparency = 0.1
 local iconCorner = Instance.new("UICorner", FloatingIcon)
 iconCorner.CornerRadius = UDim.new(1, 0)
 local iconStroke = Instance.new("UIStroke", FloatingIcon)
-iconStroke.Color = Color3.fromRGB(150, 100, 255)
-iconStroke.Thickness = 2
+iconStroke.Color = Color3.fromRGB(180, 120, 255)
+iconStroke.Thickness = 3
 FloatingIcon.Visible = false
 
 -- Draggable для иконки
 local draggingIcon = false
 local dragOffsetIcon = Vector2.new(0, 0)
+local clickTime = 0
 
 FloatingIcon.MouseButton1Down:Connect(function(x, y)
+    clickTime = tick()
     draggingIcon = true
     dragOffsetIcon = Vector2.new(x - FloatingIcon.AbsolutePosition.X, y - FloatingIcon.AbsolutePosition.Y)
 end)
@@ -496,12 +525,11 @@ end)
 
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if draggingIcon then
-            draggingIcon = false
-        else
+        if draggingIcon and (tick() - clickTime) < 0.2 then
             MenuFrame.Visible = true
             FloatingIcon.Visible = false
         end
+        draggingIcon = false
     end
 end)
 
@@ -546,17 +574,35 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Анимация баннера (медленнее!)
+-- Анимация баннера (медленнее и плавнее!)
 local bannerTween = TweenService:Create(
     BannerFrame, 
-    TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), 
-    {Size = UDim2.new(0, 60, 0, 60), Position = UDim2.new(0.02, 0, 0.05, 0)}
+    TweenInfo.new(4.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
+    {Size = UDim2.new(0, 70, 0, 70), Position = UDim2.new(0.02, 0, 0.05, 0)}
 )
 bannerTween:Play()
+
+-- Отдельная анимация для текста баннера
+local bannerTextTween = TweenService:Create(
+    BannerText,
+    TweenInfo.new(4.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+    {TextSize = 15}
+)
+bannerTextTween:Play()
+
 bannerTween.Completed:Connect(function()
-    pcall(function() BannerFrame:Destroy() end)
-    MenuFrame.Visible = true
-    FloatingIcon.Visible = true
+    task.wait(1)
+    local fadeOutTween = TweenService:Create(
+        BannerFrame,
+        TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        {BackgroundTransparency = 1}
+    )
+    fadeOutTween:Play()
+    fadeOutTween.Completed:Connect(function()
+        pcall(function() BannerFrame:Destroy() end)
+        MenuFrame.Visible = true
+        FloatingIcon.Visible = true
+    end)
 end)
 
-print("✅ Bulba Hub Pro загружен! (Баннер медленнее, иконка и меню перемещаются, полёт удалён)")
+print("✅ Bulba Hub Pro загружен! (Чёрный баннер, плавные анимации, красивое меню)")
