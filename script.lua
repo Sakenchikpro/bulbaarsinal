@@ -1,5 +1,5 @@
--- Bulba Hub Pro | FINAL FIXED
--- ВСЁ РАБОТАЕТ: баннер с анимацией, аимбот, esp, меню, иконка
+-- Bulba Hub Pro | Modern + Banner
+-- Работает: Аимбот, ESP, Зум. Баннер плавно улетает в угол.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -17,12 +17,9 @@ repeat task.wait() until LocalPlayer and LocalPlayer.Character
 local AimbotEnabled = false
 local ESPEnabled = false
 local ZoomEnabled = false
-local InfiniteJumpEnabled = false
-local SpeedEnabled = false
 
 local AimFOV = 300
 local AimSmoothness = 0.35
-local SpeedValue = 70
 
 -- === ЗУМ ===
 local function SetZoom()
@@ -31,60 +28,29 @@ local function SetZoom()
     end)
 end
 
--- === БЕСКОНЕЧНЫЕ ПРЫЖКИ ===
-local infiniteJumpConnection = nil
-local function ToggleInfiniteJump()
-    InfiniteJumpEnabled = not InfiniteJumpEnabled
-    if infiniteJumpConnection then
-        infiniteJumpConnection:Disconnect()
-        infiniteJumpConnection = nil
-    end
-    if InfiniteJumpEnabled then
-        infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
-            local char = LocalPlayer.Character
-            local hum = char and char:FindFirstChild("Humanoid")
-            if hum and hum.Health > 0 then
-                hum:ChangeState("Jumping")
-            end
-        end)
-    end
-end
-
--- === СКОРОСТЬ ===
-local function SetSpeed()
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChild("Humanoid")
-    if hum then
-        hum.WalkSpeed = SpeedEnabled and SpeedValue or 16
-    end
-end
-
--- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ИГРОКА ===
-local function GetClosestVisiblePlayer()
+-- === ПОИСК ЦЕЛИ ===
+local function GetTarget()
     local closest = nil
     local shortest = AimFOV
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            if player.Team == LocalPlayer.Team then continue end
-            
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            local head = player.Character:FindFirstChild("Head")
-            if not humanoid or not head or humanoid.Health <= 0 then continue end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            if plr.Team == LocalPlayer.Team then continue end
+            local hum = plr.Character:FindFirstChild("Humanoid")
+            local head = plr.Character:FindFirstChild("Head")
+            if not hum or not head or hum.Health <= 0 then continue end
             
             local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
             if not onScreen then continue end
             
             local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).unit * 1000)
             local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
-            local isVisible = hit and hit:IsDescendantOf(player.Character)
-            
-            if isVisible then
-                local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                if distance < shortest then
-                    shortest = distance
-                    closest = player
+            if hit and hit:IsDescendantOf(plr.Character) then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = plr
                 end
             end
         end
@@ -98,100 +64,55 @@ local function DoAimbot(target)
     local head = target.Character:FindFirstChild("Head")
     if not head then return end
     
-    local direction = (head.Position - Camera.CFrame.Position).unit
-    local targetCFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
-    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimSmoothness)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+    if onScreen then
+        local centerX = Camera.ViewportSize.X / 2
+        local centerY = Camera.ViewportSize.Y / 2
+        local deltaX = (screenPos.X - centerX) * AimSmoothness
+        local deltaY = (screenPos.Y - centerY) * AimSmoothness
+        if math.abs(deltaX) > 0.5 or math.abs(deltaY) > 0.5 then
+            mousemoverel(deltaX, deltaY)
+        end
+    end
 end
 
 -- === ESP ===
-local espObjects = {}
-local function CreateESP(player)
-    if not player.Character then return end
-    
-    local highlight = Instance.new("Highlight")
-    highlight.FillTransparency = 0.7
-    highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-    highlight.Parent = player.Character
-    
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_" .. player.Name
-    billboard.AlwaysOnTop = true
-    billboard.Size = UDim2.new(0, 200, 0, 60)
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-    local rootPart = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Torso") or player.Character
-    billboard.Parent = rootPart
-    
-    local nameLabel = Instance.new("TextLabel", billboard)
-    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = player.Name
-    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextScaled = true
-    
-    local hpLabel = Instance.new("TextLabel", billboard)
-    hpLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    hpLabel.Position = UDim2.new(0, 0, 0.5, 0)
-    hpLabel.BackgroundTransparency = 1
-    hpLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-    hpLabel.Font = Enum.Font.Gotham
-    hpLabel.TextScaled = true
-    
-    espObjects[player] = {highlight, billboard, nameLabel, hpLabel}
-end
-
+local espObjs = {}
 local function UpdateESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local isAlive = player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
-            if ESPEnabled and isAlive then
-                if not espObjects[player] then
-                    CreateESP(player)
-                else
-                    local humanoid = player.Character.Humanoid
-                    local hpPercent = (humanoid.Health / humanoid.MaxHealth) * 100
-                    pcall(function()
-                        espObjects[player][3].Text = player.Name
-                        espObjects[player][4].Text = string.format("%.0f%% HP", hpPercent)
-                    end)
-                    
-                    local head = player.Character:FindFirstChild("Head")
-                    local isVisible = false
-                    if head then
-                        local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).unit * 1000)
-                        local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
-                        isVisible = hit and hit:IsDescendantOf(player.Character)
-                    end
-                    local color = isVisible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-                    pcall(function()
-                        espObjects[player][1].OutlineColor = color
-                    end)
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local alive = plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0
+            if ESPEnabled and alive then
+                if not espObjs[plr] then
+                    local hl = Instance.new("Highlight")
+                    hl.FillTransparency = 0.7
+                    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
+                    hl.Parent = plr.Character
+                    espObjs[plr] = hl
                 end
             else
-                if espObjects[player] then
-                    for _, obj in pairs(espObjects[player]) do
-                        pcall(function() obj:Destroy() end)
-                    end
-                    espObjects[player] = nil
+                if espObjs[plr] then
+                    espObjs[plr]:Destroy()
+                    espObjs[plr] = nil
                 end
             end
         end
     end
 end
 
--- === GUI ===
+-- ==================== GUI ====================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
 ScreenGui.ResetOnSpawn = false
 
--- === БАННЕР С ПЛАВНОЙ АНИМАЦИЕЙ ===
+-- ===== БАННЕР =====
 local BannerFrame = Instance.new("Frame")
 BannerFrame.Parent = ScreenGui
 BannerFrame.Size = UDim2.new(0, 320, 0, 180)
 BannerFrame.Position = UDim2.new(0.5, -160, 0.5, -90)
 BannerFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BannerFrame.BackgroundTransparency = 0
+BannerFrame.BackgroundTransparency = 0.05
 local bannerCorner = Instance.new("UICorner", BannerFrame)
 bannerCorner.CornerRadius = UDim.new(0, 40)
 local bannerStroke = Instance.new("UIStroke", BannerFrame)
@@ -207,8 +128,8 @@ BannerText.Font = Enum.Font.GothamBold
 BannerText.RichText = true
 BannerText.BackgroundTransparency = 1
 
--- Анимация уменьшения
-task.wait(2)
+-- Анимация баннера (плавное сжатие в угол)
+task.wait(2.5)
 local shrink = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
     Size = UDim2.new(0, 70, 0, 70),
     Position = UDim2.new(0.02, 0, 0.05, 0)
@@ -224,109 +145,113 @@ shrink:Play()
 textShrink:Play()
 strokeShrink:Play()
 
--- === МЕНЮ ===
+-- ===== МЕНЮ (ШИРОКОЕ) =====
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 350, 0, 500)
-MenuFrame.Position = UDim2.new(0.02, 0, 0.1, 0)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MenuFrame.Size = UDim2.new(0, 450, 0, 320)
+MenuFrame.Position = UDim2.new(0.5, -225, 0.3, 0)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MenuFrame.BackgroundTransparency = 0.05
 MenuFrame.Active = true
 MenuFrame.Draggable = true
 MenuFrame.Visible = false
 local menuCorner = Instance.new("UICorner", MenuFrame)
-menuCorner.CornerRadius = UDim.new(0, 12)
+menuCorner.CornerRadius = UDim.new(0, 16)
+
+local menuStroke = Instance.new("UIStroke", MenuFrame)
+menuStroke.Color = Color3.fromRGB(80, 120, 200)
+menuStroke.Thickness = 2
 
 local Title = Instance.new("TextLabel", MenuFrame)
 Title.Size = UDim2.new(1, 0, 0, 45)
-Title.Text = "BULBA HUB PRO"
-Title.TextColor3 = Color3.fromRGB(255, 180, 80)
+Title.Text = "⚡ BULBA HUB ⚡"
+Title.TextColor3 = Color3.fromRGB(255, 180, 100)
 Title.TextSize = 22
 Title.Font = Enum.Font.GothamBold
 Title.BackgroundTransparency = 1
 
-local MinimizeBtn = Instance.new("TextButton", MenuFrame)
-MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
-MinimizeBtn.Position = UDim2.new(1, -45, 0, 5)
-MinimizeBtn.Text = "−"
-MinimizeBtn.TextSize = 25
-MinimizeBtn.BackgroundTransparency = 1
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+local CloseBtn = Instance.new("TextButton", MenuFrame)
+CloseBtn.Size = UDim2.new(0, 45, 0, 35)
+CloseBtn.Position = UDim2.new(1, -55, 0, 5)
+CloseBtn.Text = "−"
+CloseBtn.TextSize = 28
+CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseBtn.BackgroundTransparency = 1
 
 -- Вкладки
 local TabBar = Instance.new("Frame", MenuFrame)
-TabBar.Size = UDim2.new(1, 0, 0, 45)
+TabBar.Size = UDim2.new(1, 0, 0, 50)
 TabBar.Position = UDim2.new(0, 0, 0, 45)
-TabBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+TabBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 
-local ComboTab = Instance.new("TextButton", TabBar)
-ComboTab.Size = UDim2.new(0.33, 0, 1, 0)
-ComboTab.Text = "COMBOT"
-ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-ComboTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+local CombotTab = Instance.new("TextButton", TabBar)
+CombotTab.Size = UDim2.new(0.5, 0, 1, 0)
+CombotTab.Text = "🎯 COMBOT"
+CombotTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+CombotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+CombotTab.Font = Enum.Font.GothamBold
+CombotTab.TextScaled = true
 
 local VisualTab = Instance.new("TextButton", TabBar)
-VisualTab.Size = UDim2.new(0.33, 0, 1, 0)
-VisualTab.Position = UDim2.new(0.33, 0, 0, 0)
-VisualTab.Text = "VISUAL"
-VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+VisualTab.Size = UDim2.new(0.5, 0, 1, 0)
+VisualTab.Position = UDim2.new(0.5, 0, 0, 0)
+VisualTab.Text = "👁️ VISUAL"
+VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
 VisualTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+VisualTab.Font = Enum.Font.GothamBold
+VisualTab.TextScaled = true
 
-local ExtraTab = Instance.new("TextButton", TabBar)
-ExtraTab.Size = UDim2.new(0.34, 0, 1, 0)
-ExtraTab.Position = UDim2.new(0.66, 0, 0, 0)
-ExtraTab.Text = "EXTRA"
-ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-ExtraTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+-- Контент
+local ContentFrame = Instance.new("Frame", MenuFrame)
+ContentFrame.Size = UDim2.new(1, -20, 1, -110)
+ContentFrame.Position = UDim2.new(0, 10, 0, 100)
+ContentFrame.BackgroundTransparency = 1
 
--- Скроллинг
-local ScrollingFrame = Instance.new("ScrollingFrame", MenuFrame)
-ScrollingFrame.Size = UDim2.new(1, -20, 1, -105)
-ScrollingFrame.Position = UDim2.new(0, 10, 0, 95)
-ScrollingFrame.BackgroundTransparency = 1
-ScrollingFrame.ScrollBarThickness = 5
-
--- === ФУНКЦИИ UI ===
-local function MakeSwitch(text, getter, setter)
+-- Функции создания элементов
+local function MakeSwitch(parent, text, getter, setter)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 55)
+    btn.Parent = parent
+    btn.Size = UDim2.new(1, -10, 0, 55)
     btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
-    btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(55, 55, 70)
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(50, 40, 50)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.Gotham
+    btn.TextScaled = true
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 10)
+    corner.CornerRadius = UDim.new(0, 12)
     
     btn.MouseButton1Click:Connect(function()
         setter(not getter())
         btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
-        btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(55, 55, 70)
+        btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(50, 40, 50)
     end)
-    
     return btn
 end
 
-local function MakeSlider(text, min, max, getter, setter)
+local function MakeSlider(parent, text, min, max, getter, setter)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 85)
-    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    local fCorner = Instance.new("UICorner", frame)
-    fCorner.CornerRadius = UDim.new(0, 10)
+    frame.Parent = parent
+    frame.Size = UDim2.new(1, -10, 0, 85)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 12)
     
     local label = Instance.new("TextLabel", frame)
     label.Size = UDim2.new(1, 0, 0, 30)
     label.Text = text .. ": " .. math.floor(getter())
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextColor3 = Color3.fromRGB(220, 220, 255)
     label.BackgroundTransparency = 1
     
     local slider = Instance.new("TextButton", frame)
     slider.Size = UDim2.new(1, -20, 0, 30)
     slider.Position = UDim2.new(0, 10, 0, 45)
-    slider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    slider.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    slider.Text = ""
     local sliderCorner = Instance.new("UICorner", slider)
     sliderCorner.CornerRadius = UDim.new(1, 0)
-    slider.Text = ""
     
     local fill = Instance.new("Frame", slider)
-    fill.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    fill.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
     local fillCorner = Instance.new("UICorner", fill)
     fillCorner.CornerRadius = UDim.new(1, 0)
     
@@ -340,8 +265,8 @@ local function MakeSlider(text, min, max, getter, setter)
     slider.MouseButton1Down:Connect(function()
         dragging = true
         while dragging and slider.Parent do
-            local touchPos = UserInputService:GetMouseLocation()
-            local relativeX = math.clamp((touchPos.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+            local mousePos = UserInputService:GetMouseLocation()
+            local relativeX = math.clamp((mousePos.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
             local newVal = min + relativeX * (max - min)
             setter(newVal)
             update()
@@ -359,73 +284,44 @@ local function MakeSlider(text, min, max, getter, setter)
     return frame
 end
 
--- === СОЗДАНИЕ КНОПОК ДЛЯ COMBOT ===
-local combotContainer = Instance.new("Frame")
-combotContainer.Size = UDim2.new(1, 0, 1, 0)
-combotContainer.BackgroundTransparency = 1
-combotContainer.Parent = ScrollingFrame
+-- Заполнение COMBOT
+local CombotContainer = Instance.new("Frame")
+CombotContainer.Parent = ContentFrame
+CombotContainer.Size = UDim2.new(1, 0, 1, 0)
+CombotContainer.BackgroundTransparency = 1
+local layout1 = Instance.new("UIListLayout", CombotContainer)
+layout1.Padding = UDim.new(0, 8)
 
-local aimbotBtn = MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
-aimbotBtn.Parent = combotContainer
+MakeSwitch(CombotContainer, "🔫 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
+MakeSlider(CombotContainer, "🎯 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
+MakeSlider(CombotContainer, "⚡ SMOOTH", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
 
-local fovSlider = MakeSlider("📡 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
-fovSlider.Parent = combotContainer
+-- Заполнение VISUAL
+local VisualContainer = Instance.new("Frame")
+VisualContainer.Parent = ContentFrame
+VisualContainer.Size = UDim2.new(1, 0, 1, 0)
+VisualContainer.BackgroundTransparency = 1
+VisualContainer.Visible = false
+local layout2 = Instance.new("UIListLayout", VisualContainer)
+layout2.Padding = UDim.new(0, 8)
 
-local smoothSlider = MakeSlider("⚡ SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
-smoothSlider.Parent = combotContainer
+MakeSwitch(VisualContainer, "👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
+MakeSwitch(VisualContainer, "🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
 
--- === СОЗДАНИЕ КНОПОК ДЛЯ VISUAL ===
-local visualContainer = Instance.new("Frame")
-visualContainer.Size = UDim2.new(1, 0, 1, 0)
-visualContainer.BackgroundTransparency = 1
-visualContainer.Parent = ScrollingFrame
-visualContainer.Visible = false
+-- Переключение вкладок
+CombotTab.MouseButton1Click:Connect(function()
+    CombotContainer.Visible = true
+    VisualContainer.Visible = false
+    CombotTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+end)
 
-local espBtn = MakeSwitch("👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
-espBtn.Parent = visualContainer
-
-local zoomBtn = MakeSwitch("🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
-zoomBtn.Parent = visualContainer
-
--- === СОЗДАНИЕ КНОПОК ДЛЯ EXTRA ===
-local extraContainer = Instance.new("Frame")
-extraContainer.Size = UDim2.new(1, 0, 1, 0)
-extraContainer.BackgroundTransparency = 1
-extraContainer.Parent = ScrollingFrame
-extraContainer.Visible = false
-
-local jumpBtn = MakeSwitch("🦘 INFINITE JUMP", function() return InfiniteJumpEnabled end, function(v) ToggleInfiniteJump() end)
-jumpBtn.Parent = extraContainer
-
-local speedBtn = MakeSwitch("⚡ SPEED", function() return SpeedEnabled end, function(v) SpeedEnabled = v; SetSpeed() end)
-speedBtn.Parent = extraContainer
-
--- === ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ===
-local function selectTab(tab)
-    combotContainer.Visible = false
-    visualContainer.Visible = false
-    extraContainer.Visible = false
-    
-    ComboTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    
-    if tab == "COMBOT" then
-        combotContainer.Visible = true
-        ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-    elseif tab == "VISUAL" then
-        visualContainer.Visible = true
-        VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-    elseif tab == "EXTRA" then
-        extraContainer.Visible = true
-        ExtraTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-    end
-end
-
-ComboTab.MouseButton1Click:Connect(function() selectTab("COMBOT") end)
-VisualTab.MouseButton1Click:Connect(function() selectTab("VISUAL") end)
-ExtraTab.MouseButton1Click:Connect(function() selectTab("EXTRA") end)
-selectTab("COMBOT")
+VisualTab.MouseButton1Click:Connect(function()
+    CombotContainer.Visible = false
+    VisualContainer.Visible = true
+    VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+    CombotTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+end)
 
 -- === ИКОНКА S ===
 local FloatingIcon = Instance.new("TextButton", ScreenGui)
@@ -441,19 +337,37 @@ local iconCorner = Instance.new("UICorner", FloatingIcon)
 iconCorner.CornerRadius = UDim.new(1, 0)
 FloatingIcon.Visible = false
 
--- Открытие меню по иконке
+-- Перетаскивание иконки
+local dragIcon = false
+local iconDragStart, iconStartPos
+FloatingIcon.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragIcon = true
+        iconDragStart = input.Position
+        iconStartPos = FloatingIcon.Position
+    end
+end)
+UserInputService.InputEnded:Connect(function()
+    dragIcon = false
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragIcon and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - iconDragStart
+        FloatingIcon.Position = UDim2.new(0, iconStartPos.X.Offset + delta.X, 0, iconStartPos.Y.Offset + delta.Y)
+    end
+end)
+
 FloatingIcon.MouseButton1Click:Connect(function()
     MenuFrame.Visible = true
     FloatingIcon.Visible = false
 end)
 
--- Сворачивание меню
-MinimizeBtn.MouseButton1Click:Connect(function()
+CloseBtn.MouseButton1Click:Connect(function()
     MenuFrame.Visible = false
     FloatingIcon.Visible = true
 end)
 
--- === ПОКАЗ МЕНЮ ПОСЛЕ БАННЕРА ===
+-- Показать меню после анимации баннера
 shrink.Completed:Connect(function()
     BannerFrame:Destroy()
     MenuFrame.Visible = true
@@ -467,7 +381,7 @@ FOVCircle.BackgroundTransparency = 1
 local circleCorner = Instance.new("UICorner", FOVCircle)
 circleCorner.CornerRadius = UDim.new(1, 0)
 local stroke = Instance.new("UIStroke", FOVCircle)
-stroke.Color = Color3.fromRGB(255, 100, 100)
+stroke.Color = Color3.fromRGB(255, 80, 80)
 stroke.Thickness = 2
 
 -- === ОСНОВНОЙ ЦИКЛ ===
@@ -476,19 +390,16 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Size = UDim2.new(0, AimFOV * 2, 0, AimFOV * 2)
         FOVCircle.Position = UDim2.new(0.5, -AimFOV, 0.5, -AimFOV)
         FOVCircle.Visible = true
-        local target = GetClosestVisiblePlayer()
+        local target = GetTarget()
         if target then
             DoAimbot(target)
         end
     else
         FOVCircle.Visible = false
     end
-    
     if ESPEnabled then
         UpdateESP()
     end
-    
-    SetSpeed()
 end)
 
-print("✅ Bulba Hub Pro FINAL загружен!")
+print("✅ Bulba Hub загружен. Баннер плавно улетает в угол!")
