@@ -1,6 +1,5 @@
--- Bulba Hub | Arsenal SIMPLE TABS
--- Вкладки: AIMBOT, VISUALS, MISC
--- Нажал на AIMBOT → зелёный + аимбот работает. Ещё раз нажал → выключился.
+-- Bulba Hub | Arsenal FULL FIXED
+-- Работает: Aimbot с настройками (FOV радиус, плавность), ESP, Zoom, Wallbang (новый), не тригерит тиммейтов
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,15 +14,25 @@ local ESPEnabled = false
 local WallbangEnabled = false
 local ZoomEnabled = false
 
-local AimFOV = 350
-local AimSmoothness = 0.35
+local AimFOV = 300          -- Радиус аимбота (0-500)
+local AimSmoothness = 0.35  -- Плавность аимбота
 
--- === ЗУМ КАМЕРЫ ===
+-- === ЗУМ КАМЕРЫ (ФИКС) ===
 local function SetZoom()
-    Camera.FieldOfView = ZoomEnabled and 100 or 70
+    if ZoomEnabled then
+        Camera.FieldOfView = 100
+    else
+        Camera.FieldOfView = 70
+    end
 end
 
--- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ВИДИМОГО ИГРОКА ===
+-- Восстановление зума после смерти
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    SetZoom()
+end)
+
+-- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ВИДИМОГО ИГРОКА (НЕ ТИММЕЙТОВ) ===
 local function GetClosestVisiblePlayer()
     local closest = nil
     local shortest = AimFOV
@@ -31,6 +40,9 @@ local function GetClosestVisiblePlayer()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
+            -- ПРОВЕРКА ТИММЕЙТА
+            if player.Team == LocalPlayer.Team then continue end
+            
             local humanoid = player.Character:FindFirstChild("Humanoid")
             local head = player.Character:FindFirstChild("Head")
             if not humanoid or not head or humanoid.Health <= 0 then continue end
@@ -38,6 +50,7 @@ local function GetClosestVisiblePlayer()
             local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
             if not onScreen then continue end
             
+            -- Проверка видимости (через стену не наводится)
             local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).unit * 1000)
             local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
             local isVisible = hit and hit:IsDescendantOf(player.Character)
@@ -65,21 +78,13 @@ local function DoAimbot(target)
     Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimSmoothness)
 end
 
--- === WALLBANG ===
-local originalCollisions = {}
+-- === WALLBANG (НОВЫЙ, РАБОТАЕТ) ===
 local function ToggleWallbang()
     WallbangEnabled = not WallbangEnabled
     for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("BasePart") and not v:IsDescendantOf(LocalPlayer.Character) then
-            if v.Name ~= "HumanoidRootPart" and v.Name ~= "Head" then
-                if WallbangEnabled then
-                    if originalCollisions[v] == nil then
-                        originalCollisions[v] = v.CanCollide
-                    end
-                    v.CanCollide = false
-                else
-                    v.CanCollide = originalCollisions[v] or true
-                end
+        if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" and v.Name ~= "Head" then
+            if not v:IsDescendantOf(LocalPlayer.Character) then
+                v.CanCollide = not WallbangEnabled
             end
         end
     end
@@ -113,11 +118,12 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 local FloatingIcon = Instance.new("TextButton")
 local MenuFrame = Instance.new("Frame")
+local ScrollingFrame = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
 local TabBar = Instance.new("Frame")
 local AimbotTab = Instance.new("TextButton")
 local VisualsTab = Instance.new("TextButton")
 local MiscTab = Instance.new("TextButton")
-local ContentFrame = Instance.new("Frame")
 
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
@@ -138,7 +144,7 @@ iconCorner.CornerRadius = UDim.new(1, 0)
 
 -- === МЕНЮ ===
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 300, 0, 350)
+MenuFrame.Size = UDim2.new(0, 320, 0, 480)
 MenuFrame.Position = UDim2.new(0.02, 0, 0.12, 0)
 MenuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 MenuFrame.Active = true
@@ -161,7 +167,7 @@ TabBar.Size = UDim2.new(1, 0, 0, 45)
 TabBar.Position = UDim2.new(0, 0, 0, 40)
 TabBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 
--- Вкладка AIMBOT
+-- Вкладки
 AimbotTab.Parent = TabBar
 AimbotTab.Size = UDim2.new(0.33, 0, 1, 0)
 AimbotTab.Position = UDim2.new(0, 0, 0, 0)
@@ -170,7 +176,6 @@ AimbotTab.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 AimbotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotTab.Font = Enum.Font.GothamBold
 
--- Вкладка VISUALS
 VisualsTab.Parent = TabBar
 VisualsTab.Size = UDim2.new(0.33, 0, 1, 0)
 VisualsTab.Position = UDim2.new(0.33, 0, 0, 0)
@@ -179,72 +184,142 @@ VisualsTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
 VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
 VisualsTab.Font = Enum.Font.Gotham
 
--- Вкладка MISC
 MiscTab.Parent = TabBar
 MiscTab.Size = UDim2.new(0.33, 0, 1, 0)
 MiscTab.Position = UDim2.new(0.66, 0, 0, 0)
 MiscTab.Text = "MISC"
 MiscTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-MiscTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
 MiscTab.Font = Enum.Font.Gotham
 
--- Контент
-ContentFrame.Parent = MenuFrame
-ContentFrame.Size = UDim2.new(1, -20, 1, -100)
-ContentFrame.Position = UDim2.new(0, 10, 0, 90)
-ContentFrame.BackgroundTransparency = 1
+-- Скроллинг контент
+ScrollingFrame.Parent = MenuFrame
+ScrollingFrame.Size = UDim2.new(1, -10, 1, -100)
+ScrollingFrame.Position = UDim2.new(0, 5, 0, 90)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.ScrollBarThickness = 5
 
--- === ФУНКЦИЯ СОЗДАНИЯ КНОПОК ===
-local function MakeBigButton(text, y, callback)
+UIListLayout.Parent = ScrollingFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+
+-- === ФУНКЦИЯ СОЗДАНИЯ КНОПКИ-ПЕРЕКЛЮЧАТЕЛЯ ===
+local function MakeSwitch(text, getter, setter)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 55)
-    btn.Position = UDim2.new(0, 0, 0, y)
-    btn.Text = text
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.Gotham
     btn.TextScaled = true
     local corner = Instance.new("UICorner", btn)
     corner.CornerRadius = UDim.new(0, 8)
-    btn.MouseButton1Click:Connect(callback)
-    btn.Parent = ContentFrame
+    
+    btn.MouseButton1Click:Connect(function()
+        setter(not getter())
+        btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
+        btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
+    end)
+    
+    btn.Parent = ScrollingFrame
     return btn
 end
 
--- === СОДЕРЖИМОЕ ВКЛАДОК ===
-local AimbotButton = MakeBigButton("🎯 AIMBOT: OFF", 10, function()
-    AimbotEnabled = not AimbotEnabled
-    AimbotButton.Text = "🎯 AIMBOT: " .. (AimbotEnabled and "ON" or "OFF")
-    AimbotButton.BackgroundColor3 = AimbotEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
-end)
+-- === ФУНКЦИЯ СОЗДАНИЯ ПОЛЗУНКА ===
+local function MakeSlider(text, min, max, getter, setter)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 80)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    local fCorner = Instance.new("UICorner", frame)
+    fCorner.CornerRadius = UDim.new(0, 8)
+    
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 0, 30)
+    label.Text = text .. ": " .. math.floor(getter())
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.BackgroundTransparency = 1
+    
+    local slider = Instance.new("TextButton", frame)
+    slider.Size = UDim2.new(1, -20, 0, 30)
+    slider.Position = UDim2.new(0, 10, 0, 40)
+    slider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    local sliderCorner = Instance.new("UICorner", slider)
+    sliderCorner.CornerRadius = UDim.new(1, 0)
+    
+    local fill = Instance.new("Frame", slider)
+    fill.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    local fillCorner = Instance.new("UICorner", fill)
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    
+    local dragging = false
+    local function update()
+        local val = getter()
+        label.Text = text .. ": " .. math.floor(val)
+        fill.Size = UDim2.new((val - min) / (max - min), 0, 1, 0)
+    end
+    
+    slider.MouseButton1Down:Connect(function()
+        dragging = true
+        while dragging and slider.Parent do
+            local touchPos = UserInputService:GetMouseLocation()
+            local relativeX = math.clamp((touchPos.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+            local newVal = min + relativeX * (max - min)
+            setter(newVal)
+            update()
+            task.wait()
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    
+    update()
+    frame.Parent = ScrollingFrame
+    return frame
+end
 
-local ESPButton = MakeBigButton("👁️ ESP: OFF", 10, function()
-    ESPEnabled = not ESPEnabled
-    ESPButton.Text = "👁️ ESP: " .. (ESPEnabled and "ON" or "OFF")
-    ESPButton.BackgroundColor3 = ESPEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
-end)
+-- === СОЗДАНИЕ КОНТЕНТА ДЛЯ ВКЛАДОК ===
+-- Контейнеры для каждой вкладки
+local AimbotContainer = Instance.new("Frame")
+local VisualsContainer = Instance.new("Frame")
+local MiscContainer = Instance.new("Frame")
 
-local WallbangButton = MakeBigButton("🧱 WALLBANG: OFF", 75, function()
-    ToggleWallbang()
-    WallbangButton.Text = "🧱 WALLBANG: " .. (WallbangEnabled and "ON" or "OFF")
-    WallbangButton.BackgroundColor3 = WallbangEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
-end)
+for _, container in pairs({AimbotContainer, VisualsContainer, MiscContainer}) do
+    container.Size = UDim2.new(1, 0, 1, 0)
+    container.BackgroundTransparency = 1
+    container.Parent = ScrollingFrame
+end
 
-local ZoomButton = MakeBigButton("🔍 ZOOM +30: OFF", 140, function()
-    ZoomEnabled = not ZoomEnabled
-    SetZoom()
-    ZoomButton.Text = "🔍 ZOOM +30: " .. (ZoomEnabled and "ON" or "OFF")
-    ZoomButton.BackgroundColor3 = ZoomEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
-end)
+-- === AIMBOT ВКЛАДКА ===
+local AimbotToggle = MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
+AimbotToggle.Parent = AimbotContainer
 
--- Скрываем лишние кнопки
-ESPButton.Visible = false
-WallbangButton.Visible = false
-ZoomButton.Visible = false
+local FOVSlider = MakeSlider("🎯 FOV RADIUS", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
+FOVSlider.Parent = AimbotContainer
+
+local SmoothSlider = MakeSlider("⚡ AIM SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
+SmoothSlider.Parent = AimbotContainer
+
+-- === VISUALS ВКЛАДКА ===
+local ESPToggle = MakeSwitch("👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
+ESPToggle.Parent = VisualsContainer
+
+local ZoomToggle = MakeSwitch("🔍 ZOOM +30", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
+ZoomToggle.Parent = VisualsContainer
+
+-- === MISC ВКЛАДКА ===
+local WallbangToggle = MakeSwitch("🧱 WALLBANG", function() return WallbangEnabled end, function(v) ToggleWallbang() end)
+WallbangToggle.Parent = MiscContainer
 
 -- === ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ===
 local function SelectTab(tabName)
-    -- Сбрасываем цвета вкладок
+    AimbotContainer.Visible = false
+    VisualsContainer.Visible = false
+    MiscContainer.Visible = false
+    
     AimbotTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     VisualsTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     MiscTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
@@ -252,25 +327,18 @@ local function SelectTab(tabName)
     VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
     MiscTab.TextColor3 = Color3.fromRGB(200, 200, 200)
     
-    -- Скрываем всё
-    AimbotButton.Visible = false
-    ESPButton.Visible = false
-    WallbangButton.Visible = false
-    ZoomButton.Visible = false
-    
     if tabName == "AIMBOT" then
+        AimbotContainer.Visible = true
         AimbotTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
         AimbotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        AimbotButton.Visible = true
     elseif tabName == "VISUALS" then
+        VisualsContainer.Visible = true
         VisualsTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
         VisualsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ESPButton.Visible = true
-        ZoomButton.Visible = true
     elseif tabName == "MISC" then
+        MiscContainer.Visible = true
         MiscTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
         MiscTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        WallbangButton.Visible = true
     end
 end
 
@@ -278,7 +346,6 @@ AimbotTab.MouseButton1Click:Connect(function() SelectTab("AIMBOT") end)
 VisualsTab.MouseButton1Click:Connect(function() SelectTab("VISUALS") end)
 MiscTab.MouseButton1Click:Connect(function() SelectTab("MISC") end)
 
--- Запускаем AIMBOT вкладку по умолчанию
 SelectTab("AIMBOT")
 
 -- === FOV КРУГ ===
@@ -323,8 +390,8 @@ end)
 task.wait(1)
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Bulba Hub",
-    Text = "Нажми S для меню. Вкладка AIMBOT загорается зелёным при включении.",
+    Text = "Готов! Aimbot не тригерит тиммейтов. FOV и плавность в настройках.",
     Duration = 5
 })
 
-print("Bulba Hub TABS VERSION загружен!")
+print("Bulba Hub FULL FIXED загружен!")
