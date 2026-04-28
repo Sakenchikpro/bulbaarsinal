@@ -199,7 +199,7 @@ BannerFrame.BackgroundTransparency = 0
 local bannerCorner = Instance.new("UICorner", BannerFrame)
 bannerCorner.CornerRadius = UDim.new(0, 40)
 local bannerStroke = Instance.new("UIStroke", BannerFrame)
-bannerStroke.Color = Color3.fromRGB(255, 100, 0)
+bannerStroke.Color = Color3.fromRGB(220, 50, 50)
 bannerStroke.Thickness = 3
 
 BannerText.Parent = BannerFrame
@@ -586,23 +586,32 @@ bannerTween:Play()
 local bannerTextTween = TweenService:Create(
     BannerText,
     TweenInfo.new(4.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-    {TextSize = 15}
+    {TextSize = 12}
 )
 bannerTextTween:Play()
 
 bannerTween.Completed:Connect(function()
-    task.wait(1)
-    local fadeOutTween = TweenService:Create(
+    task.wait(0.5)
+    -- Анимируем обводку и фон
+    local strokeTween = TweenService:Create(
+        bannerStroke,
+        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        {Color = Color3.fromRGB(220, 50, 50), Thickness = 0}
+    )
+    strokeTween:Play()
+    
+    local bgTween = TweenService:Create(
         BannerFrame,
-        TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
         {BackgroundTransparency = 1}
     )
-    fadeOutTween:Play()
-    fadeOutTween.Completed:Connect(function()
+    bgTween:Play()
+    
+    bgTween.Completed:Connect(function()
         pcall(function() BannerFrame:Destroy() end)
         MenuFrame.Visible = true
         FloatingIcon.Visible = true
     end)
 end)
 
-print("✅ Bulba Hub Pro загружен! (Чёрный баннер, плавные анимации, красивое меню)")
+print("✅ Bulba Hub Pro загружен! (Красный баннер, полностью пропадает, красивое меню)")
