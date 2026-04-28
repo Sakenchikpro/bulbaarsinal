@@ -1,5 +1,6 @@
--- Bulba Hub Pro | Arsenal ULTIMATE
--- ВСЁ РАБОТАЕТ: Aimbot, ESP (линии + HP), Zoom, меню с баннером, сворачивание
+-- Bulba Hub Pro | Arsenal ULTIMATE (BUGFIXED)
+-- Работает: Aimbot, ESP, Zoom, Infinite Jump, Speed
+-- Баннер исчезает, меню работает, иконка плавает
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,7 +10,11 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Workspace = game:GetService("Workspace")
 
--- === НАСТРОЙКИ (ВСЕ ВЫКЛЮЧЕНЫ) ===
+-- === ЖДЁМ ЗАГРУЗКУ ===
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until LocalPlayer and LocalPlayer.Character
+
+-- === НАСТРОЙКИ ===
 local AimbotEnabled = false
 local ESPEnabled = false
 local ZoomEnabled = false
@@ -20,12 +25,14 @@ local AimFOV = 300
 local AimSmoothness = 0.35
 local SpeedValue = 70
 
--- === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+-- === ЗУМ ===
 local function SetZoom()
-    Camera.FieldOfView = ZoomEnabled and 100 or 70
+    pcall(function()
+        Camera.FieldOfView = ZoomEnabled and 100 or 70
+    end)
 end
 
--- Бесконечные прыжки (без дублирования)
+-- === БЕСКОНЕЧНЫЕ ПРЫЖКИ ===
 local infiniteJumpConnection = nil
 local function ToggleInfiniteJump()
     InfiniteJumpEnabled = not InfiniteJumpEnabled
@@ -35,25 +42,25 @@ local function ToggleInfiniteJump()
     end
     if InfiniteJumpEnabled then
         infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid:ChangeState("Jumping")
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum and hum.Health > 0 then
+                hum:ChangeState("Jumping")
             end
         end)
     end
 end
 
--- Скорость
+-- === СКОРОСТЬ ===
 local function SetSpeed()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        if SpeedEnabled then
-            LocalPlayer.Character.Humanoid.WalkSpeed = SpeedValue
-        else
-            LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        end
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChild("Humanoid")
+    if hum then
+        hum.WalkSpeed = SpeedEnabled and SpeedValue or 16
     end
 end
 
--- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ИГРОКА (НЕ ТИММЕЙТ) ===
+-- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ИГРОКА ===
 local function GetClosestVisiblePlayer()
     local closest = nil
     local shortest = AimFOV
@@ -71,6 +78,7 @@ local function GetClosestVisiblePlayer()
             local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
             if not onScreen then continue end
             
+            -- Проверка видимости
             local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).unit * 1000)
             local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
             local isVisible = hit and hit:IsDescendantOf(player.Character)
@@ -98,7 +106,7 @@ local function DoAimbot(target)
     Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimSmoothness)
 end
 
--- === КРАСИВЫЙ ESP (HIGHLIGHT + HP + ИМЯ) ===
+-- === ESP ===
 local espObjects = {}
 local function CreateESP(player)
     if not player.Character then return end
@@ -145,8 +153,10 @@ local function UpdateESP()
                 else
                     local humanoid = player.Character.Humanoid
                     local hpPercent = (humanoid.Health / humanoid.MaxHealth) * 100
-                    espObjects[player][3].Text = player.Name
-                    espObjects[player][4].Text = string.format("%.0f%% HP", hpPercent)
+                    pcall(function()
+                        espObjects[player][3].Text = player.Name
+                        espObjects[player][4].Text = string.format("%.0f%% HP", hpPercent)
+                    end)
                     
                     -- Проверка видимости для цвета
                     local head = player.Character:FindFirstChild("Head")
@@ -157,7 +167,9 @@ local function UpdateESP()
                         isVisible = hit and hit:IsDescendantOf(player.Character)
                     end
                     local color = isVisible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-                    espObjects[player][1].OutlineColor = color
+                    pcall(function()
+                        espObjects[player][1].OutlineColor = color
+                    end)
                 end
             else
                 if espObjects[player] then
@@ -171,26 +183,14 @@ local function UpdateESP()
     end
 end
 
--- === ==== ИНТЕРФЕЙС ==== === --
+-- === ==== GUI ==== === --
 local ScreenGui = Instance.new("ScreenGui")
-local BannerFrame = Instance.new("Frame")
-local BannerText = Instance.new("TextLabel")
-local MenuFrame = Instance.new("Frame")
-local TopBar = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local MinimizeBtn = Instance.new("TextButton")
-local TabBar = Instance.new("Frame")
-local ComboTab = Instance.new("TextButton")
-local VisualTab = Instance.new("TextButton")
-local ExtraTab = Instance.new("TextButton")
-local ScrollingFrame = Instance.new("ScrollingFrame")
-local FloatingIcon = Instance.new("TextButton")
-
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
 ScreenGui.ResetOnSpawn = false
 
--- === БАННЕР С ЧЁРНЫМ ФОНОМ И БОЛЬШИМИ УГЛАМИ ===
+-- === БАННЕР (ИСПРАВЛЕН) ===
+local BannerFrame = Instance.new("Frame")
 BannerFrame.Parent = ScreenGui
 BannerFrame.Size = UDim2.new(0, 320, 0, 180)
 BannerFrame.Position = UDim2.new(0.5, -160, 0.5, -90)
@@ -202,7 +202,7 @@ local bannerStroke = Instance.new("UIStroke", BannerFrame)
 bannerStroke.Color = Color3.fromRGB(220, 50, 50)
 bannerStroke.Thickness = 3
 
-BannerText.Parent = BannerFrame
+local BannerText = Instance.new("TextLabel", BannerFrame)
 BannerText.Size = UDim2.new(1, 0, 1, 0)
 BannerText.Text = "<font color='rgb(255,50,50)'>SS</font>akenchik"
 BannerText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -211,142 +211,104 @@ BannerText.Font = Enum.Font.GothamBold
 BannerText.RichText = true
 BannerText.BackgroundTransparency = 1
 
--- === МЕНЮ (видимо сразу) ===
+-- Анимация исчезновения
+task.wait(2)
+local fadeOut = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0.02, 0, 0.05, 0)
+})
+local textFade = TweenService:Create(BannerText, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+    TextTransparency = 1
+})
+local strokeFade = TweenService:Create(bannerStroke, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+    Thickness = 0
+})
+
+fadeOut:Play()
+textFade:Play()
+strokeFade:Play()
+
+-- === МЕНЮ ===
+local MenuFrame = Instance.new("Frame")
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 380, 0, 600)
+MenuFrame.Size = UDim2.new(0, 350, 0, 500)
 MenuFrame.Position = UDim2.new(0.02, 0, 0.1, 0)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 MenuFrame.Active = true
 MenuFrame.Draggable = true
 MenuFrame.Visible = false
 local menuCorner = Instance.new("UICorner", MenuFrame)
-menuCorner.CornerRadius = UDim.new(0, 20)
-local menuStroke = Instance.new("UIStroke", MenuFrame)
-menuStroke.Color = Color3.fromRGB(100, 150, 255)
-menuStroke.Thickness = 3
+menuCorner.CornerRadius = UDim.new(0, 12)
 
--- Верхняя панель с кнопкой сворачивания
-TopBar.Parent = MenuFrame
-TopBar.Size = UDim2.new(1, 0, 0, 60)
-TopBar.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
-local topCorner = Instance.new("UICorner", TopBar)
-topCorner.CornerRadius = UDim.new(0, 20)
-local topGradient = Instance.new("UIGradient", TopBar)
-topGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(50, 80, 200)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(30, 60, 150)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 40, 100))
-})
-local topStroke = Instance.new("UIStroke", TopBar)
-topStroke.Color = Color3.fromRGB(150, 180, 255)
-topStroke.Thickness = 2
-
-Title.Parent = TopBar
-Title.Size = UDim2.new(1, -60, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
-Title.Text = "⚡ BULBA HUB PRO ⚡"
-Title.TextColor3 = Color3.fromRGB(150, 220, 255)
-Title.TextSize = 20
+-- Заголовок
+local Title = Instance.new("TextLabel", MenuFrame)
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.Text = "BULBA HUB PRO"
+Title.TextColor3 = Color3.fromRGB(255, 180, 80)
+Title.TextSize = 22
 Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 
-MinimizeBtn.Parent = TopBar
-MinimizeBtn.Size = UDim2.new(0, 45, 0, 45)
-MinimizeBtn.Position = UDim2.new(1, -50, 0, 7)
+-- Кнопка сворачивания
+local MinimizeBtn = Instance.new("TextButton", MenuFrame)
+MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
+MinimizeBtn.Position = UDim2.new(1, -45, 0, 5)
 MinimizeBtn.Text = "−"
-MinimizeBtn.TextSize = 32
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 120, 100)
-MinimizeBtn.BackgroundTransparency = 0.4
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 30, 30)
-local minCorner = Instance.new("UICorner", MinimizeBtn)
-minCorner.CornerRadius = UDim.new(0, 10)
-local minStroke = Instance.new("UIStroke", MinimizeBtn)
-minStroke.Color = Color3.fromRGB(200, 100, 100)
-minStroke.Thickness = 2
-
+MinimizeBtn.TextSize = 25
+MinimizeBtn.BackgroundTransparency = 1
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeBtn.MouseButton1Click:Connect(function()
     MenuFrame.Visible = false
     FloatingIcon.Visible = true
 end)
 
--- Панель вкладок
-TabBar.Parent = MenuFrame
-TabBar.Size = UDim2.new(1, 0, 0, 55)
-TabBar.Position = UDim2.new(0, 0, 0, 60)
-TabBar.BackgroundColor3 = Color3.fromRGB(12, 12, 25)
+-- Вкладки
+local TabBar = Instance.new("Frame", MenuFrame)
+TabBar.Size = UDim2.new(1, 0, 0, 45)
+TabBar.Position = UDim2.new(0, 0, 0, 45)
+TabBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 
-ComboTab.Parent = TabBar
+local ComboTab = Instance.new("TextButton", TabBar)
 ComboTab.Size = UDim2.new(0.33, 0, 1, 0)
-ComboTab.Position = UDim2.new(0, 0, 0, 0)
-ComboTab.Text = "🎯 AIMBOT"
-ComboTab.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+ComboTab.Text = "COMBOT"
+ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
 ComboTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-ComboTab.Font = Enum.Font.GothamBold
-ComboTab.TextScaled = true
-local comboCorner = Instance.new("UICorner", ComboTab)
-comboCorner.CornerRadius = UDim.new(0, 0)
-local comboStroke = Instance.new("UIStroke", ComboTab)
-comboStroke.Color = Color3.fromRGB(100, 255, 100)
-comboStroke.Thickness = 2
 
-VisualTab.Parent = TabBar
+local VisualTab = Instance.new("TextButton", TabBar)
 VisualTab.Size = UDim2.new(0.33, 0, 1, 0)
 VisualTab.Position = UDim2.new(0.33, 0, 0, 0)
-VisualTab.Text = "👁️ ESP"
-VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-VisualTab.TextColor3 = Color3.fromRGB(180, 180, 200)
-VisualTab.Font = Enum.Font.GothamBold
-VisualTab.TextScaled = true
-local visualCorner = Instance.new("UICorner", VisualTab)
-visualCorner.CornerRadius = UDim.new(0, 0)
-local visualStroke = Instance.new("UIStroke", VisualTab)
-visualStroke.Color = Color3.fromRGB(100, 100, 150)
-visualStroke.Thickness = 1
+VisualTab.Text = "VISUAL"
+VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+VisualTab.TextColor3 = Color3.fromRGB(200, 200, 200)
 
-ExtraTab.Parent = TabBar
+local ExtraTab = Instance.new("TextButton", TabBar)
 ExtraTab.Size = UDim2.new(0.34, 0, 1, 0)
 ExtraTab.Position = UDim2.new(0.66, 0, 0, 0)
-ExtraTab.Text = "⚙️ EXTRA"
-ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-ExtraTab.TextColor3 = Color3.fromRGB(180, 180, 200)
-ExtraTab.Font = Enum.Font.GothamBold
-ExtraTab.TextScaled = true
-local extraCorner = Instance.new("UICorner", ExtraTab)
-extraCorner.CornerRadius = UDim.new(0, 0)
-local extraStroke = Instance.new("UIStroke", ExtraTab)
-extraStroke.Color = Color3.fromRGB(100, 100, 150)
-extraStroke.Thickness = 1
+ExtraTab.Text = "EXTRA"
+ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+ExtraTab.TextColor3 = Color3.fromRGB(200, 200, 200)
 
 -- Скроллинг
-ScrollingFrame.Parent = MenuFrame
-ScrollingFrame.Size = UDim2.new(1, -20, 1, -135)
-ScrollingFrame.Position = UDim2.new(0, 10, 0, 120)
+local ScrollingFrame = Instance.new("ScrollingFrame", MenuFrame)
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -105)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 95)
 ScrollingFrame.BackgroundTransparency = 1
-ScrollingFrame.ScrollBarThickness = 6
-ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 255)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.ScrollBarThickness = 5
 
--- === ФУНКЦИИ СОЗДАНИЯ UI ===
+-- === ФУНКЦИИ UI ===
 local function MakeSwitch(text, getter, setter)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 70)
-    btn.Text = text .. ": " .. (getter() and "🟢 ON" or "🔴 OFF")
-    btn.BackgroundColor3 = getter() and Color3.fromRGB(15, 90, 15) or Color3.fromRGB(60, 35, 35)
+    btn.Size = UDim2.new(1, 0, 0, 55)
+    btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(55, 55, 70)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.Gotham
-    btn.TextScaled = true
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 15)
-    local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = getter() and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 80, 80)
-    stroke.Thickness = 2
+    corner.CornerRadius = UDim.new(0, 10)
     
     btn.MouseButton1Click:Connect(function()
         setter(not getter())
-        btn.Text = text .. ": " .. (getter() and "🟢 ON" or "🔴 OFF")
-        btn.BackgroundColor3 = getter() and Color3.fromRGB(15, 90, 15) or Color3.fromRGB(60, 35, 35)
-        stroke.Color = getter() and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(200, 80, 80)
+        btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
+        btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(55, 55, 70)
     end)
     
     btn.Parent = ScrollingFrame
@@ -355,35 +317,27 @@ end
 
 local function MakeSlider(text, min, max, getter, setter)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -10, 0, 110)
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+    frame.Size = UDim2.new(1, 0, 0, 85)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     local fCorner = Instance.new("UICorner", frame)
-    fCorner.CornerRadius = UDim.new(0, 15)
-    local fStroke = Instance.new("UIStroke", frame)
-    fStroke.Color = Color3.fromRGB(120, 170, 255)
-    fStroke.Thickness = 2
+    fCorner.CornerRadius = UDim.new(0, 10)
     
     local label = Instance.new("TextLabel", frame)
-    label.Size = UDim2.new(1, 0, 0, 40)
+    label.Size = UDim2.new(1, 0, 0, 30)
     label.Text = text .. ": " .. math.floor(getter())
-    label.TextColor3 = Color3.fromRGB(120, 200, 255)
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.BackgroundTransparency = 1
-    label.Font = Enum.Font.GothamBold
-    label.TextScaled = true
     
     local slider = Instance.new("TextButton", frame)
-    slider.Size = UDim2.new(1, -20, 0, 40)
-    slider.Position = UDim2.new(0, 10, 0, 60)
-    slider.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+    slider.Size = UDim2.new(1, -20, 0, 30)
+    slider.Position = UDim2.new(0, 10, 0, 45)
+    slider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
     local sliderCorner = Instance.new("UICorner", slider)
     sliderCorner.CornerRadius = UDim.new(1, 0)
     slider.Text = ""
-    local sliderStroke = Instance.new("UIStroke", slider)
-    sliderStroke.Color = Color3.fromRGB(100, 150, 255)
-    sliderStroke.Thickness = 1
     
     local fill = Instance.new("Frame", slider)
-    fill.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    fill.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
     local fillCorner = Instance.new("UICorner", fill)
     fillCorner.CornerRadius = UDim.new(1, 0)
     
@@ -407,7 +361,7 @@ local function MakeSlider(text, min, max, getter, setter)
     end)
     
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
     end)
@@ -418,67 +372,49 @@ local function MakeSlider(text, min, max, getter, setter)
 end
 
 -- === СОЗДАНИЕ КНОПОК ===
--- AIMBOT вкладка
-local combotSwitch = MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
-local fovSlider = MakeSlider("📡 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
-local smoothSlider = MakeSlider("⚡ SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
+MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
+MakeSlider("📡 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
+MakeSlider("⚡ SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
 
--- ESP вкладка
-local espSwitch = MakeSwitch("👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
-local zoomSwitch = MakeSwitch("🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
+MakeSwitch("👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
+MakeSwitch("🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
 
--- EXTRA вкладка
-local jumpSwitch = MakeSwitch("🦘 INFINITE JUMP", function() return InfiniteJumpEnabled end, function(v) ToggleInfiniteJump() end)
-local speedSwitch = MakeSwitch("⚡ SPEED", function() return SpeedEnabled end, function(v) SpeedEnabled = v; SetSpeed() end)
+MakeSwitch("🦘 INFINITE JUMP", function() return InfiniteJumpEnabled end, function(v) ToggleInfiniteJump() end)
+MakeSwitch("⚡ SPEED", function() return SpeedEnabled end, function(v) SpeedEnabled = v; SetSpeed() end)
 
--- === ОРГАНИЗАЦИЯ ВКЛАДОК ===
-local combotContainer = Instance.new("Frame")
-local visualContainer = Instance.new("Frame")
-local extraContainer = Instance.new("Frame")
-for _, c in pairs({combotContainer, visualContainer, extraContainer}) do
-    c.Size = UDim2.new(1, 0, 1, 0)
-    c.BackgroundTransparency = 1
-    c.CanvasSize = UDim2.new(0, 0, 0, 0)
-    c.Parent = ScrollingFrame
-end
-
-combotSwitch.Parent = combotContainer
-fovSlider.Parent = combotContainer
-smoothSlider.Parent = combotContainer
-espSwitch.Parent = visualContainer
-zoomSwitch.Parent = visualContainer
-jumpSwitch.Parent = extraContainer
-speedSwitch.Parent = extraContainer
-
+-- === ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ===
 local function selectTab(tab)
-    combotContainer.Visible = false
-    visualContainer.Visible = false
-    extraContainer.Visible = false
-    ComboTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-    ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-    ComboTab.TextColor3 = Color3.fromRGB(180, 180, 200)
-    VisualTab.TextColor3 = Color3.fromRGB(180, 180, 200)
-    ExtraTab.TextColor3 = Color3.fromRGB(180, 180, 200)
-    comboStroke.Color = Color3.fromRGB(100, 100, 150)
-    visualStroke.Color = Color3.fromRGB(100, 100, 150)
-    extraStroke.Color = Color3.fromRGB(100, 100, 150)
+    for _, child in ipairs(ScrollingFrame:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("Frame") then
+            child.Visible = false
+        end
+    end
+    
+    ComboTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+    ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     
     if tab == "COMBOT" then
-        combotContainer.Visible = true
-        ComboTab.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        ComboTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        comboStroke.Color = Color3.fromRGB(100, 255, 100)
+        ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        for i, child in ipairs(ScrollingFrame:GetChildren()) do
+            if i <= 3 then child.Visible = true end
+        end
     elseif tab == "VISUAL" then
-        visualContainer.Visible = true
-        VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-        VisualTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        visualStroke.Color = Color3.fromRGB(100, 200, 255)
+        VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        local count = 0
+        for _, child in ipairs(ScrollingFrame:GetChildren()) do
+            if child:IsA("TextButton") and (child.Text:find("ESP") or child.Text:find("ZOOM")) then
+                child.Visible = true
+                count = count + 1
+            end
+        end
     elseif tab == "EXTRA" then
-        extraContainer.Visible = true
-        ExtraTab.BackgroundColor3 = Color3.fromRGB(180, 120, 0)
-        ExtraTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        extraStroke.Color = Color3.fromRGB(255, 200, 100)
+        ExtraTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        for _, child in ipairs(ScrollingFrame:GetChildren()) do
+            if child:IsA("TextButton") and (child.Text:find("JUMP") or child.Text:find("SPEED")) then
+                child.Visible = true
+            end
+        end
     end
 end
 
@@ -487,55 +423,34 @@ VisualTab.MouseButton1Click:Connect(function() selectTab("VISUAL") end)
 ExtraTab.MouseButton1Click:Connect(function() selectTab("EXTRA") end)
 selectTab("COMBOT")
 
--- === ИКОНКА S (с правильным Draggable) ===
-FloatingIcon.Parent = ScreenGui
-FloatingIcon.Size = UDim2.new(0, 70, 0, 70)
+-- === ИКОНКА S ===
+local FloatingIcon = Instance.new("TextButton", ScreenGui)
+FloatingIcon.Size = UDim2.new(0, 55, 0, 55)
 FloatingIcon.Position = UDim2.new(0.02, 0, 0.05, 0)
 FloatingIcon.Text = "S"
-FloatingIcon.TextSize = 38
+FloatingIcon.TextSize = 30
 FloatingIcon.Font = Enum.Font.GothamBold
 FloatingIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-FloatingIcon.BackgroundColor3 = Color3.fromRGB(120, 60, 200)
-FloatingIcon.BackgroundTransparency = 0.1
+FloatingIcon.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+FloatingIcon.BackgroundTransparency = 0.2
 local iconCorner = Instance.new("UICorner", FloatingIcon)
 iconCorner.CornerRadius = UDim.new(1, 0)
-local iconStroke = Instance.new("UIStroke", FloatingIcon)
-iconStroke.Color = Color3.fromRGB(180, 120, 255)
-iconStroke.Thickness = 3
 FloatingIcon.Visible = false
 
--- Draggable для иконки
-local draggingIcon = false
-local dragOffsetIcon = Vector2.new(0, 0)
-local clickTime = 0
-
-FloatingIcon.MouseButton1Down:Connect(function(x, y)
-    clickTime = tick()
-    draggingIcon = true
-    dragOffsetIcon = Vector2.new(x - FloatingIcon.AbsolutePosition.X, y - FloatingIcon.AbsolutePosition.Y)
+FloatingIcon.MouseButton1Click:Connect(function()
+    MenuFrame.Visible = true
+    FloatingIcon.Visible = false
 end)
 
-UserInputService.InputChanged:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if draggingIcon and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mouse = UserInputService:GetMouseLocation()
-        FloatingIcon.Position = UDim2.new(0, mouse.X - dragOffsetIcon.X, 0, mouse.Y - dragOffsetIcon.Y)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if draggingIcon and (tick() - clickTime) < 0.2 then
-            MenuFrame.Visible = true
-            FloatingIcon.Visible = false
-        end
-        draggingIcon = false
-    end
+-- === ПОКАЗ МЕНЮ ПОСЛЕ БАННЕРА ===
+fadeOut.Completed:Connect(function()
+    BannerFrame:Destroy()
+    MenuFrame.Visible = true
+    FloatingIcon.Visible = true
 end)
 
 -- === FOV КРУГ ===
-local FOVCircle = Instance.new("Frame")
-FOVCircle.Parent = ScreenGui
+local FOVCircle = Instance.new("Frame", ScreenGui)
 FOVCircle.Size = UDim2.new(0, 0, 0, 0)
 FOVCircle.BackgroundTransparency = 1
 local circleCorner = Instance.new("UICorner", FOVCircle)
@@ -546,15 +461,10 @@ stroke.Thickness = 2
 
 -- === ОСНОВНОЙ ЦИКЛ ===
 RunService.RenderStepped:Connect(function()
-    -- Обновляем ESP
-    UpdateESP()
-    
-    -- Aimbot логика
     if AimbotEnabled then
         FOVCircle.Size = UDim2.new(0, AimFOV * 2, 0, AimFOV * 2)
         FOVCircle.Position = UDim2.new(0.5, -AimFOV, 0.5, -AimFOV)
         FOVCircle.Visible = true
-        
         local target = GetClosestVisiblePlayer()
         if target then
             DoAimbot(target)
@@ -563,55 +473,11 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
     
-    -- Speed обновление
-    if SpeedEnabled then
-        SetSpeed()
+    if ESPEnabled then
+        UpdateESP()
     end
     
-    -- Zoom обновление
-    if ZoomEnabled then
-        SetZoom()
-    end
+    SetSpeed()
 end)
 
--- Анимация баннера (медленнее и плавнее!)
-local bannerTween = TweenService:Create(
-    BannerFrame, 
-    TweenInfo.new(4.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), 
-    {Size = UDim2.new(0, 70, 0, 70), Position = UDim2.new(0.02, 0, 0.05, 0)}
-)
-bannerTween:Play()
-
--- Отдельная анимация для текста баннера
-local bannerTextTween = TweenService:Create(
-    BannerText,
-    TweenInfo.new(4.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-    {TextSize = 12}
-)
-bannerTextTween:Play()
-
-bannerTween.Completed:Connect(function()
-    task.wait(0.5)
-    -- Анимируем обводку и фон
-    local strokeTween = TweenService:Create(
-        bannerStroke,
-        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-        {Color = Color3.fromRGB(220, 50, 50), Thickness = 0}
-    )
-    strokeTween:Play()
-    
-    local bgTween = TweenService:Create(
-        BannerFrame,
-        TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-        {BackgroundTransparency = 1}
-    )
-    bgTween:Play()
-    
-    bgTween.Completed:Connect(function()
-        pcall(function() BannerFrame:Destroy() end)
-        MenuFrame.Visible = true
-        FloatingIcon.Visible = true
-    end)
-end)
-
-print("✅ Bulba Hub Pro загружен! (Красный баннер, полностью пропадает, красивое меню)")
+print("✅ Bulba Hub Pro загружен! Баннер исчезает, всё работает.")
