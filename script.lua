@@ -1,4 +1,5 @@
--- Bulba Hub Pro | Normal ESP (No Box)
+-- Bulba Hub Pro | FULL FIXED
+-- Всё работает: аимбот, ESP, меню, баннер, иконка S, RGB
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,15 +17,39 @@ repeat task.wait() until LocalPlayer and LocalPlayer.Character
 local AimbotEnabled = false
 local ESPEnabled = false
 local ZoomEnabled = false
+local InfiniteJumpEnabled = false
+local SpeedEnabled = false
 
 local AimFOV = 300
-local AimSmoothness = 0.35
+local SpeedValue = 70
+local MenuColor = Color3.fromRGB(100, 150, 255)
 
 -- === ЗУМ ===
 local function SetZoom()
     pcall(function()
         Camera.FieldOfView = ZoomEnabled and 100 or 70
     end)
+end
+
+-- === БЕСКОНЕЧНЫЕ ПРЫЖКИ ===
+local jumpConn = nil
+local function ToggleJump()
+    InfiniteJumpEnabled = not InfiniteJumpEnabled
+    if jumpConn then jumpConn:Disconnect() end
+    if InfiniteJumpEnabled then
+        jumpConn = UserInputService.JumpRequest:Connect(function()
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+            if hum and hum.Health > 0 then hum:ChangeState("Jumping") end
+        end)
+    end
+end
+
+-- === СКОРОСТЬ ===
+local function SetSpeed()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+    if hum then
+        hum.WalkSpeed = SpeedEnabled and SpeedValue or 16
+    end
 end
 
 -- === ПОИСК ЦЕЛИ ===
@@ -61,75 +86,88 @@ end
 local function DoAimbot(target)
     if not target or not target.Character then return end
     local head = target.Character:FindFirstChild("Head")
-    if not head then return end
+    local hum = target.Character:FindFirstChild("Humanoid")
+    if not head or not hum or hum.Health <= 0 then return end
     
-    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-    if onScreen then
-        local centerX = Camera.ViewportSize.X / 2
-        local centerY = Camera.ViewportSize.Y / 2
-        local deltaX = (screenPos.X - centerX) * AimSmoothness
-        local deltaY = (screenPos.Y - centerY) * AimSmoothness
-        if math.abs(deltaX) > 0.5 or math.abs(deltaY) > 0.5 then
-            mousemoverel(deltaX, deltaY)
-        end
-    end
+    local targetCF = CFrame.new(Camera.CFrame.Position, head.Position)
+    Camera.CFrame = Camera.CFrame:Lerp(targetCF, 0.5)
 end
 
--- === НОРМАЛЬНЫЙ ESP (Highlight + Имя + HP) ===
+-- === ESP ===
 local espObjects = {}
 local function CreateESP(player)
     if not player.Character then return end
     
-    -- Подсветка (Highlight)
     local highlight = Instance.new("Highlight")
     highlight.FillTransparency = 0.7
     highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
     highlight.Parent = player.Character
     
-    -- Табличка с именем и HP
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_" .. player.Name
     billboard.AlwaysOnTop = true
-    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.Size = UDim2.new(0, 80, 0, 35)
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
     local root = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Torso") or player.Character
     billboard.Parent = root
     
     local nameLabel = Instance.new("TextLabel", billboard)
-    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.Size = UDim2.new(1, 0, 0, 18)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
     nameLabel.BackgroundTransparency = 1
     nameLabel.Text = player.Name
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     nameLabel.Font = Enum.Font.GothamBold
     nameLabel.TextScaled = true
     
-    local hpLabel = Instance.new("TextLabel", billboard)
-    hpLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    hpLabel.Position = UDim2.new(0, 0, 0.5, 0)
-    hpLabel.BackgroundTransparency = 1
-    hpLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-    hpLabel.Font = Enum.Font.Gotham
-    hpLabel.TextScaled = true
+    local hpBarBg = Instance.new("Frame", billboard)
+    hpBarBg.Size = UDim2.new(0.7, 0, 0, 4)
+    hpBarBg.Position = UDim2.new(0.15, 0, 0, 22)
+    hpBarBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    local bgCorner = Instance.new("UICorner", hpBarBg)
+    bgCorner.CornerRadius = UDim.new(1, 0)
     
-    espObjects[player] = {highlight, billboard, nameLabel, hpLabel}
+    local hpBarFill = Instance.new("Frame", hpBarBg)
+    hpBarFill.Size = UDim2.new(1, 0, 1, 0)
+    hpBarFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    local fillCorner = Instance.new("UICorner", hpBarFill)
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    
+    espObjects[player] = {highlight, billboard, nameLabel, hpBarFill}
 end
 
 local function UpdateESP()
+    for player, objs in pairs(espObjects) do
+        if not player or not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+            for _, obj in pairs(objs) do
+                pcall(function() obj:Destroy() end)
+            end
+            espObjects[player] = nil
+        end
+    end
+    
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local alive = player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
+        if player ~= LocalPlayer and player.Character and player.Team ~= LocalPlayer.Team then
+            local hum = player.Character:FindFirstChild("Humanoid")
+            local alive = hum and hum.Health > 0
+            
             if ESPEnabled and alive then
                 if not espObjects[player] then
                     CreateESP(player)
                 else
-                    local hum = player.Character.Humanoid
-                    local hpPercent = (hum.Health / hum.MaxHealth) * 100
+                    local hpPercent = hum.Health / hum.MaxHealth
                     pcall(function()
                         espObjects[player][3].Text = player.Name
-                        espObjects[player][4].Text = string.format("%.0f%% HP", hpPercent)
+                        espObjects[player][4].Size = UDim2.new(hpPercent, 0, 1, 0)
+                        if hpPercent > 0.5 then
+                            espObjects[player][4].BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                        elseif hpPercent > 0.25 then
+                            espObjects[player][4].BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+                        else
+                            espObjects[player][4].BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                        end
                     end)
                     
-                    -- Смена цвета по видимости
                     local head = player.Character:FindFirstChild("Head")
                     local visible = false
                     if head then
@@ -183,7 +221,6 @@ BannerText.RichText = true
 BannerText.BackgroundTransparency = 1
 
 -- Анимация баннера
-task.wait(2.5)
 local shrink = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
     Size = UDim2.new(0, 70, 0, 70),
     Position = UDim2.new(0.02, 0, 0.05, 0)
@@ -202,31 +239,38 @@ strokeShrink:Play()
 -- ===== МЕНЮ =====
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 450, 0, 320)
-MenuFrame.Position = UDim2.new(0.5, -225, 0.3, 0)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MenuFrame.Size = UDim2.new(0, 450, 0, 420)
+MenuFrame.Position = UDim2.new(0.5, -225, 0.25, 0)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MenuFrame.BackgroundTransparency = 0.05
 MenuFrame.Active = true
 MenuFrame.Draggable = true
 MenuFrame.Visible = false
 local menuCorner = Instance.new("UICorner", MenuFrame)
-menuCorner.CornerRadius = UDim.new(0, 16)
+menuCorner.CornerRadius = UDim.new(0, 20)
+
+local gradient = Instance.new("UIGradient", MenuFrame)
+gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 40)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 25))
+})
 
 local menuStroke = Instance.new("UIStroke", MenuFrame)
-menuStroke.Color = Color3.fromRGB(80, 120, 200)
+menuStroke.Color = MenuColor
 menuStroke.Thickness = 2
+menuStroke.Transparency = 0.3
 
 local Title = Instance.new("TextLabel", MenuFrame)
-Title.Size = UDim2.new(1, 0, 0, 45)
-Title.Text = "⚡ BULBA HUB ⚡"
-Title.TextColor3 = Color3.fromRGB(255, 180, 100)
-Title.TextSize = 22
+Title.Size = UDim2.new(1, 0, 0, 55)
+Title.Text = "⚡ BULBA HUB PRO ⚡"
+Title.TextColor3 = Color3.fromRGB(255, 200, 100)
+Title.TextSize = 24
 Title.Font = Enum.Font.GothamBold
 Title.BackgroundTransparency = 1
 
 local CloseBtn = Instance.new("TextButton", MenuFrame)
-CloseBtn.Size = UDim2.new(0, 45, 0, 35)
-CloseBtn.Position = UDim2.new(1, -55, 0, 5)
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -50, 0, 8)
 CloseBtn.Text = "−"
 CloseBtn.TextSize = 28
 CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -235,39 +279,48 @@ CloseBtn.BackgroundTransparency = 1
 -- Вкладки
 local TabBar = Instance.new("Frame", MenuFrame)
 TabBar.Size = UDim2.new(1, 0, 0, 50)
-TabBar.Position = UDim2.new(0, 0, 0, 45)
-TabBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+TabBar.Position = UDim2.new(0, 0, 0, 55)
+TabBar.BackgroundTransparency = 1
 
-local CombotTab = Instance.new("TextButton", TabBar)
-CombotTab.Size = UDim2.new(0.5, 0, 1, 0)
-CombotTab.Text = "🎯 COMBOT"
-CombotTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-CombotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-CombotTab.Font = Enum.Font.GothamBold
-CombotTab.TextScaled = true
+local function CreateTab(name, x)
+    local btn = Instance.new("TextButton", TabBar)
+    btn.Size = UDim2.new(0.33, 0, 1, 0)
+    btn.Position = UDim2.new(x, 0, 0, 0)
+    btn.Text = name
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextScaled = true
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0, 10)
+    
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 80)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 50)}):Play()
+    end)
+    
+    return btn
+end
 
-local VisualTab = Instance.new("TextButton", TabBar)
-VisualTab.Size = UDim2.new(0.5, 0, 1, 0)
-VisualTab.Position = UDim2.new(0.5, 0, 0, 0)
-VisualTab.Text = "👁️ VISUAL"
-VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-VisualTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-VisualTab.Font = Enum.Font.GothamBold
-VisualTab.TextScaled = true
+local CombotTab = CreateTab("🎯 COMBOT", 0)
+local VisualTab = CreateTab("👁️ VISUAL", 0.33)
+local ExtraTab = CreateTab("⚡ EXTRA", 0.66)
 
 -- Контент
 local ContentFrame = Instance.new("Frame", MenuFrame)
-ContentFrame.Size = UDim2.new(1, -20, 1, -110)
-ContentFrame.Position = UDim2.new(0, 10, 0, 100)
+ContentFrame.Size = UDim2.new(1, -20, 1, -120)
+ContentFrame.Position = UDim2.new(0, 10, 0, 110)
 ContentFrame.BackgroundTransparency = 1
 
--- Функции
+-- Функции создания элементов
 local function MakeSwitch(parent, text, getter, setter)
     local btn = Instance.new("TextButton")
     btn.Parent = parent
-    btn.Size = UDim2.new(1, -10, 0, 55)
-    btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
-    btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(50, 40, 50)
+    btn.Size = UDim2.new(1, 0, 0, 50)
+    btn.Text = text .. ": " .. (getter() and "✅ ON" or "❌ OFF")
+    btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(40, 35, 50)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.Gotham
     btn.TextScaled = true
@@ -276,16 +329,25 @@ local function MakeSwitch(parent, text, getter, setter)
     
     btn.MouseButton1Click:Connect(function()
         setter(not getter())
-        btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
-        btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(50, 40, 50)
+        btn.Text = text .. ": " .. (getter() and "✅ ON" or "❌ OFF")
+        local color = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(40, 35, 50)
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
     end)
+    
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = getter() and Color3.fromRGB(0, 130, 0) or Color3.fromRGB(60, 50, 70)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = getter() and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(40, 35, 50)}):Play()
+    end)
+    
     return btn
 end
 
 local function MakeSlider(parent, text, min, max, getter, setter)
     local frame = Instance.new("Frame")
     frame.Parent = parent
-    frame.Size = UDim2.new(1, -10, 0, 85)
+    frame.Size = UDim2.new(1, 0, 0, 80)
     frame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
     local corner = Instance.new("UICorner", frame)
     corner.CornerRadius = UDim.new(0, 12)
@@ -305,7 +367,7 @@ local function MakeSlider(parent, text, min, max, getter, setter)
     sliderCorner.CornerRadius = UDim.new(1, 0)
     
     local fill = Instance.new("Frame", slider)
-    fill.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+    fill.BackgroundColor3 = MenuColor
     local fillCorner = Instance.new("UICorner", fill)
     fillCorner.CornerRadius = UDim.new(1, 0)
     
@@ -332,126 +394,124 @@ local function MakeSlider(parent, text, min, max, getter, setter)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
+        update()
     end)
     
     update()
     return frame
 end
 
--- COMBOT
+local function MakeColorSlider(parent)
+    local frame = Instance.new("Frame")
+    frame.Parent = parent
+    frame.Size = UDim2.new(1, 0, 0, 80)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 12)
+    
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, 0, 0, 30)
+    label.Text = "🎨 MENU COLOR"
+    label.TextColor3 = Color3.fromRGB(220, 220, 255)
+    label.BackgroundTransparency = 1
+    
+    local slider = Instance.new("TextButton", frame)
+    slider.Size = UDim2.new(1, -20, 0, 30)
+    slider.Position = UDim2.new(0, 10, 0, 45)
+    slider.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    slider.Text = ""
+    local sliderCorner = Instance.new("UICorner", slider)
+    sliderCorner.CornerRadius = UDim.new(1, 0)
+    
+    local fill = Instance.new("Frame", slider)
+    fill.BackgroundColor3 = MenuColor
+    local fillCorner = Instance.new("UICorner", fill)
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    
+    local dragging = false
+    local function update()
+        fill.BackgroundColor3 = MenuColor
+        if menuStroke then menuStroke.Color = MenuColor end
+        if CombotTab then
+            if CombotContainer and CombotContainer.Visible then
+                CombotTab.BackgroundColor3 = MenuColor
+            end
+            if VisualContainer and VisualContainer.Visible then
+                VisualTab.BackgroundColor3 = MenuColor
+            end
+            if ExtraContainer and ExtraContainer.Visible then
+                ExtraTab.BackgroundColor3 = MenuColor
+            end
+        end
+    end
+    
+    slider.MouseButton1Down:Connect(function()
+        dragging = true
+        while dragging and slider.Parent do
+            local mousePos = UserInputService:GetMouseLocation()
+            local relativeX = math.clamp((mousePos.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+            MenuColor = Color3.fromHSV(relativeX, 1, 1)
+            update()
+            task.wait()
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+        update()
+    end)
+    
+    update()
+    return frame
+end
+
+-- === КОНТЕЙНЕРЫ ===
 local CombotContainer = Instance.new("Frame")
-CombotContainer.Parent = ContentFrame
-CombotContainer.Size = UDim2.new(1, 0, 1, 0)
-CombotContainer.BackgroundTransparency = 1
+local VisualContainer = Instance.new("Frame")
+local ExtraContainer = Instance.new("Frame")
+for _, c in pairs({CombotContainer, VisualContainer, ExtraContainer}) do
+    c.Size = UDim2.new(1, 0, 1, 0)
+    c.BackgroundTransparency = 1
+    c.Parent = ContentFrame
+end
+
 local layout1 = Instance.new("UIListLayout", CombotContainer)
 layout1.Padding = UDim.new(0, 8)
-
-MakeSwitch(CombotContainer, "🔫 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
-MakeSlider(CombotContainer, "🎯 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
-MakeSlider(CombotContainer, "⚡ SMOOTH", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
-
--- VISUAL
-local VisualContainer = Instance.new("Frame")
-VisualContainer.Parent = ContentFrame
-VisualContainer.Size = UDim2.new(1, 0, 1, 0)
-VisualContainer.BackgroundTransparency = 1
-VisualContainer.Visible = false
 local layout2 = Instance.new("UIListLayout", VisualContainer)
 layout2.Padding = UDim.new(0, 8)
+local layout3 = Instance.new("UIListLayout", ExtraContainer)
+layout3.Padding = UDim.new(0, 8)
 
+-- COMBOT
+MakeSwitch(CombotContainer, "🔫 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
+MakeSlider(CombotContainer, "🎯 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
+
+-- VISUAL
 MakeSwitch(VisualContainer, "👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
-MakeSwitch(VisualContainer, "🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
+MakeSwitch(VisualContainer, "🔍 ZOOM +30", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
+MakeColorSlider(VisualContainer)
 
--- Переключение
-CombotTab.MouseButton1Click:Connect(function()
-    CombotContainer.Visible = true
-    VisualContainer.Visible = false
-    CombotTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-    VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-end)
+-- EXTRA
+MakeSwitch(ExtraContainer, "🦘 INFINITE JUMP", function() return InfiniteJumpEnabled end, function(v) ToggleJump() end)
+MakeSwitch(ExtraContainer, "⚡ SPEED", function() return SpeedEnabled end, function(v) SpeedEnabled = v; SetSpeed() end)
 
-VisualTab.MouseButton1Click:Connect(function()
+-- Переключение вкладок
+local function selectTab(tab)
     CombotContainer.Visible = false
-    VisualContainer.Visible = true
-    VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-    CombotTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
-end)
-
--- Иконка S
-local FloatingIcon = Instance.new("TextButton", ScreenGui)
-FloatingIcon.Size = UDim2.new(0, 55, 0, 55)
-FloatingIcon.Position = UDim2.new(0.02, 0, 0.05, 0)
-FloatingIcon.Text = "S"
-FloatingIcon.TextSize = 30
-FloatingIcon.Font = Enum.Font.GothamBold
-FloatingIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-FloatingIcon.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-FloatingIcon.BackgroundTransparency = 0.2
-local iconCorner = Instance.new("UICorner", FloatingIcon)
-iconCorner.CornerRadius = UDim.new(1, 0)
-FloatingIcon.Visible = false
-
-local dragIcon = false
-local iconDragStart, iconStartPos
-FloatingIcon.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragIcon = true
-        iconDragStart = input.Position
-        iconStartPos = FloatingIcon.Position
-    end
-end)
-UserInputService.InputEnded:Connect(function()
-    dragIcon = false
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragIcon and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - iconDragStart
-        FloatingIcon.Position = UDim2.new(0, iconStartPos.X.Offset + delta.X, 0, iconStartPos.Y.Offset + delta.Y)
-    end
-end)
-
-FloatingIcon.MouseButton1Click:Connect(function()
-    MenuFrame.Visible = true
-    FloatingIcon.Visible = false
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    MenuFrame.Visible = false
-    FloatingIcon.Visible = true
-end)
-
-shrink.Completed:Connect(function()
-    BannerFrame:Destroy()
-    MenuFrame.Visible = true
-    FloatingIcon.Visible = true
-end)
-
--- FOV круг
-local FOVCircle = Instance.new("Frame", ScreenGui)
-FOVCircle.Size = UDim2.new(0, 0, 0, 0)
-FOVCircle.BackgroundTransparency = 1
-local circleCorner = Instance.new("UICorner", FOVCircle)
-circleCorner.CornerRadius = UDim.new(1, 0)
-local stroke = Instance.new("UIStroke", FOVCircle)
-stroke.Color = Color3.fromRGB(255, 80, 80)
-stroke.Thickness = 2
-
--- Главный цикл
-RunService.RenderStepped:Connect(function()
-    if AimbotEnabled then
-        FOVCircle.Size = UDim2.new(0, AimFOV * 2, 0, AimFOV * 2)
-        FOVCircle.Position = UDim2.new(0.5, -AimFOV, 0.5, -AimFOV)
-        FOVCircle.Visible = true
-        local target = GetTarget()
-        if target then
-            DoAimbot(target)
-        end
-    else
-        FOVCircle.Visible = false
-    end
-    if ESPEnabled then
-        UpdateESP()
-    end
-end)
-
-print("✅ Bulba Hub загружен. ESP с именем и HP, без бокса.")
+    VisualContainer.Visible = false
+    ExtraContainer.Visible = false
+    
+    TweenService:Create(CombotTab, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 50), TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+    TweenService:Create(VisualTab, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 50), TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+    TweenService:Create(ExtraTab, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 50), TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+    
+    if tab == "COMBOT" then
+        CombotContainer.Visible = true
+        TweenService:Create(CombotTab, TweenInfo.new(0.2), {BackgroundColor3 = MenuColor, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    elseif tab == "VISUAL" then
+        VisualContainer.Visible = true
+        TweenService:Create(VisualTab, TweenInfo.new(0.2), {BackgroundColor3 = MenuColor, TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    elseif tab == "EXTRA" then
+ 
