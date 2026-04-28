@@ -1,5 +1,4 @@
--- Bulba Hub Pro | Modern + Banner
--- Работает: Аимбот, ESP, Зум. Баннер плавно улетает в угол.
+-- Bulba Hub Pro | Normal ESP (No Box)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -76,24 +75,79 @@ local function DoAimbot(target)
     end
 end
 
--- === ESP ===
-local espObjs = {}
+-- === НОРМАЛЬНЫЙ ESP (Highlight + Имя + HP) ===
+local espObjects = {}
+local function CreateESP(player)
+    if not player.Character then return end
+    
+    -- Подсветка (Highlight)
+    local highlight = Instance.new("Highlight")
+    highlight.FillTransparency = 0.7
+    highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    highlight.Parent = player.Character
+    
+    -- Табличка с именем и HP
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_" .. player.Name
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    local root = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Torso") or player.Character
+    billboard.Parent = root
+    
+    local nameLabel = Instance.new("TextLabel", billboard)
+    nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextScaled = true
+    
+    local hpLabel = Instance.new("TextLabel", billboard)
+    hpLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    hpLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    hpLabel.BackgroundTransparency = 1
+    hpLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    hpLabel.Font = Enum.Font.Gotham
+    hpLabel.TextScaled = true
+    
+    espObjects[player] = {highlight, billboard, nameLabel, hpLabel}
+end
+
 local function UpdateESP()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            local alive = plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local alive = player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
             if ESPEnabled and alive then
-                if not espObjs[plr] then
-                    local hl = Instance.new("Highlight")
-                    hl.FillTransparency = 0.7
-                    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
-                    hl.Parent = plr.Character
-                    espObjs[plr] = hl
+                if not espObjects[player] then
+                    CreateESP(player)
+                else
+                    local hum = player.Character.Humanoid
+                    local hpPercent = (hum.Health / hum.MaxHealth) * 100
+                    pcall(function()
+                        espObjects[player][3].Text = player.Name
+                        espObjects[player][4].Text = string.format("%.0f%% HP", hpPercent)
+                    end)
+                    
+                    -- Смена цвета по видимости
+                    local head = player.Character:FindFirstChild("Head")
+                    local visible = false
+                    if head then
+                        local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).unit * 1000)
+                        local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
+                        visible = hit and hit:IsDescendantOf(player.Character)
+                    end
+                    local color = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                    pcall(function()
+                        espObjects[player][1].OutlineColor = color
+                    end)
                 end
             else
-                if espObjs[plr] then
-                    espObjs[plr]:Destroy()
-                    espObjs[plr] = nil
+                if espObjects[player] then
+                    for _, obj in pairs(espObjects[player]) do
+                        pcall(function() obj:Destroy() end)
+                    end
+                    espObjects[player] = nil
                 end
             end
         end
@@ -128,7 +182,7 @@ BannerText.Font = Enum.Font.GothamBold
 BannerText.RichText = true
 BannerText.BackgroundTransparency = 1
 
--- Анимация баннера (плавное сжатие в угол)
+-- Анимация баннера
 task.wait(2.5)
 local shrink = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
     Size = UDim2.new(0, 70, 0, 70),
@@ -145,7 +199,7 @@ shrink:Play()
 textShrink:Play()
 strokeShrink:Play()
 
--- ===== МЕНЮ (ШИРОКОЕ) =====
+-- ===== МЕНЮ =====
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Parent = ScreenGui
 MenuFrame.Size = UDim2.new(0, 450, 0, 320)
@@ -207,7 +261,7 @@ ContentFrame.Size = UDim2.new(1, -20, 1, -110)
 ContentFrame.Position = UDim2.new(0, 10, 0, 100)
 ContentFrame.BackgroundTransparency = 1
 
--- Функции создания элементов
+-- Функции
 local function MakeSwitch(parent, text, getter, setter)
     local btn = Instance.new("TextButton")
     btn.Parent = parent
@@ -284,7 +338,7 @@ local function MakeSlider(parent, text, min, max, getter, setter)
     return frame
 end
 
--- Заполнение COMBOT
+-- COMBOT
 local CombotContainer = Instance.new("Frame")
 CombotContainer.Parent = ContentFrame
 CombotContainer.Size = UDim2.new(1, 0, 1, 0)
@@ -296,7 +350,7 @@ MakeSwitch(CombotContainer, "🔫 AIMBOT", function() return AimbotEnabled end, 
 MakeSlider(CombotContainer, "🎯 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
 MakeSlider(CombotContainer, "⚡ SMOOTH", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
 
--- Заполнение VISUAL
+-- VISUAL
 local VisualContainer = Instance.new("Frame")
 VisualContainer.Parent = ContentFrame
 VisualContainer.Size = UDim2.new(1, 0, 1, 0)
@@ -308,7 +362,7 @@ layout2.Padding = UDim.new(0, 8)
 MakeSwitch(VisualContainer, "👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
 MakeSwitch(VisualContainer, "🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
 
--- Переключение вкладок
+-- Переключение
 CombotTab.MouseButton1Click:Connect(function()
     CombotContainer.Visible = true
     VisualContainer.Visible = false
@@ -323,7 +377,7 @@ VisualTab.MouseButton1Click:Connect(function()
     CombotTab.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
 end)
 
--- === ИКОНКА S ===
+-- Иконка S
 local FloatingIcon = Instance.new("TextButton", ScreenGui)
 FloatingIcon.Size = UDim2.new(0, 55, 0, 55)
 FloatingIcon.Position = UDim2.new(0.02, 0, 0.05, 0)
@@ -337,7 +391,6 @@ local iconCorner = Instance.new("UICorner", FloatingIcon)
 iconCorner.CornerRadius = UDim.new(1, 0)
 FloatingIcon.Visible = false
 
--- Перетаскивание иконки
 local dragIcon = false
 local iconDragStart, iconStartPos
 FloatingIcon.InputBegan:Connect(function(input)
@@ -367,14 +420,13 @@ CloseBtn.MouseButton1Click:Connect(function()
     FloatingIcon.Visible = true
 end)
 
--- Показать меню после анимации баннера
 shrink.Completed:Connect(function()
     BannerFrame:Destroy()
     MenuFrame.Visible = true
     FloatingIcon.Visible = true
 end)
 
--- === FOV КРУГ ===
+-- FOV круг
 local FOVCircle = Instance.new("Frame", ScreenGui)
 FOVCircle.Size = UDim2.new(0, 0, 0, 0)
 FOVCircle.BackgroundTransparency = 1
@@ -384,7 +436,7 @@ local stroke = Instance.new("UIStroke", FOVCircle)
 stroke.Color = Color3.fromRGB(255, 80, 80)
 stroke.Thickness = 2
 
--- === ОСНОВНОЙ ЦИКЛ ===
+-- Главный цикл
 RunService.RenderStepped:Connect(function()
     if AimbotEnabled then
         FOVCircle.Size = UDim2.new(0, AimFOV * 2, 0, AimFOV * 2)
@@ -402,4 +454,4 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-print("✅ Bulba Hub загружен. Баннер плавно улетает в угол!")
+print("✅ Bulba Hub загружен. ESP с именем и HP, без бокса.")
