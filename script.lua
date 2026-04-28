@@ -1,5 +1,6 @@
--- Bulba Hub | Arsenal FULL FIXED
--- Работает: Aimbot с настройками (FOV радиус, плавность), ESP, Zoom, Wallbang (новый), не тригерит тиммейтов
+-- Bulba Hub | Arsenal CLEAN NO BUGS
+-- Работает: Aimbot (вкл/выкл + FOV + плавность), ESP (вкл/выкл), Zoom (+30)
+-- Wallbang УДАЛЁН
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,13 +12,12 @@ local Workspace = game:GetService("Workspace")
 -- === НАСТРОЙКИ (ВСЕ ВЫКЛЮЧЕНЫ) ===
 local AimbotEnabled = false
 local ESPEnabled = false
-local WallbangEnabled = false
 local ZoomEnabled = false
 
-local AimFOV = 300          -- Радиус аимбота (0-500)
-local AimSmoothness = 0.35  -- Плавность аимбота
+local AimFOV = 300
+local AimSmoothness = 0.35
 
--- === ЗУМ КАМЕРЫ (ФИКС) ===
+-- === ЗУМ КАМЕРЫ ===
 local function SetZoom()
     if ZoomEnabled then
         Camera.FieldOfView = 100
@@ -26,13 +26,13 @@ local function SetZoom()
     end
 end
 
--- Восстановление зума после смерти
+-- Защита от сброса зума при смерти
 LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.5)
     SetZoom()
 end)
 
--- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ВИДИМОГО ИГРОКА (НЕ ТИММЕЙТОВ) ===
+-- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ИГРОКА (НЕ ТИММЕЙТ) ===
 local function GetClosestVisiblePlayer()
     local closest = nil
     local shortest = AimFOV
@@ -40,7 +40,7 @@ local function GetClosestVisiblePlayer()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            -- ПРОВЕРКА ТИММЕЙТА
+            -- Не трогаем тиммейтов
             if player.Team == LocalPlayer.Team then continue end
             
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -78,18 +78,6 @@ local function DoAimbot(target)
     Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimSmoothness)
 end
 
--- === WALLBANG (НОВЫЙ, РАБОТАЕТ) ===
-local function ToggleWallbang()
-    WallbangEnabled = not WallbangEnabled
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" and v.Name ~= "Head" then
-            if not v:IsDescendantOf(LocalPlayer.Character) then
-                v.CanCollide = not WallbangEnabled
-            end
-        end
-    end
-end
-
 -- === ESP ===
 local espObjects = {}
 local function UpdateESP()
@@ -99,7 +87,7 @@ local function UpdateESP()
             if ESPEnabled and isAlive then
                 if not espObjects[player] then
                     local highlight = Instance.new("Highlight")
-                    highlight.FillTransparency = 0.6
+                    highlight.FillTransparency = 0.7
                     highlight.OutlineColor = Color3.fromRGB(255, 80, 80)
                     highlight.Parent = player.Character
                     espObjects[player] = highlight
@@ -114,7 +102,7 @@ local function UpdateESP()
     end
 end
 
--- === ==== МЕНЮ СО ВКЛАДКАМИ ==== === --
+-- === ==== МЕНЮ ==== === --
 local ScreenGui = Instance.new("ScreenGui")
 local FloatingIcon = Instance.new("TextButton")
 local MenuFrame = Instance.new("Frame")
@@ -123,7 +111,6 @@ local UIListLayout = Instance.new("UIListLayout")
 local TabBar = Instance.new("Frame")
 local AimbotTab = Instance.new("TextButton")
 local VisualsTab = Instance.new("TextButton")
-local MiscTab = Instance.new("TextButton")
 
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
@@ -144,7 +131,7 @@ iconCorner.CornerRadius = UDim.new(1, 0)
 
 -- === МЕНЮ ===
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 320, 0, 480)
+MenuFrame.Size = UDim2.new(0, 320, 0, 450)
 MenuFrame.Position = UDim2.new(0.02, 0, 0.12, 0)
 MenuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 MenuFrame.Active = true
@@ -167,32 +154,25 @@ TabBar.Size = UDim2.new(1, 0, 0, 45)
 TabBar.Position = UDim2.new(0, 0, 0, 40)
 TabBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 
--- Вкладки
+-- Вкладка AIMBOT
 AimbotTab.Parent = TabBar
-AimbotTab.Size = UDim2.new(0.33, 0, 1, 0)
+AimbotTab.Size = UDim2.new(0.5, 0, 1, 0)
 AimbotTab.Position = UDim2.new(0, 0, 0, 0)
 AimbotTab.Text = "AIMBOT"
 AimbotTab.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 AimbotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimbotTab.Font = Enum.Font.GothamBold
 
+-- Вкладка VISUALS
 VisualsTab.Parent = TabBar
-VisualsTab.Size = UDim2.new(0.33, 0, 1, 0)
-VisualsTab.Position = UDim2.new(0.33, 0, 0, 0)
+VisualsTab.Size = UDim2.new(0.5, 0, 1, 0)
+VisualsTab.Position = UDim2.new(0.5, 0, 0, 0)
 VisualsTab.Text = "VISUALS"
 VisualsTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
 VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
 VisualsTab.Font = Enum.Font.Gotham
 
-MiscTab.Parent = TabBar
-MiscTab.Size = UDim2.new(0.33, 0, 1, 0)
-MiscTab.Position = UDim2.new(0.66, 0, 0, 0)
-MiscTab.Text = "MISC"
-MiscTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-MiscTab.Font = Enum.Font.Gotham
-
--- Скроллинг контент
+-- Скроллинг
 ScrollingFrame.Parent = MenuFrame
 ScrollingFrame.Size = UDim2.new(1, -10, 1, -100)
 ScrollingFrame.Position = UDim2.new(0, 5, 0, 90)
@@ -203,17 +183,17 @@ UIListLayout.Parent = ScrollingFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 8)
 
--- === ФУНКЦИЯ СОЗДАНИЯ КНОПКИ-ПЕРЕКЛЮЧАТЕЛЯ ===
+-- === ФУНКЦИЯ КНОПКИ-ПЕРЕКЛЮЧАТЕЛЯ ===
 local function MakeSwitch(text, getter, setter)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 55)
+    btn.Size = UDim2.new(1, 0, 0, 60)
     btn.Text = text .. ": " .. (getter() and "ON" or "OFF")
     btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 80)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.Gotham
     btn.TextScaled = true
     local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 10)
     
     btn.MouseButton1Click:Connect(function()
         setter(not getter())
@@ -225,23 +205,25 @@ local function MakeSwitch(text, getter, setter)
     return btn
 end
 
--- === ФУНКЦИЯ СОЗДАНИЯ ПОЛЗУНКА ===
-local function MakeSlider(text, min, max, getter, setter)
+-- === ФУНКЦИЯ ПОЛЗУНКА ===
+local function MakeSlider(text, min, max, getter, setter, format)
+    format = format or function(v) return math.floor(v) end
+    
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 80)
+    frame.Size = UDim2.new(1, 0, 0, 85)
     frame.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     local fCorner = Instance.new("UICorner", frame)
-    fCorner.CornerRadius = UDim.new(0, 8)
+    fCorner.CornerRadius = UDim.new(0, 10)
     
     local label = Instance.new("TextLabel", frame)
     label.Size = UDim2.new(1, 0, 0, 30)
-    label.Text = text .. ": " .. math.floor(getter())
+    label.Text = text .. ": " .. format(getter())
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.BackgroundTransparency = 1
     
     local slider = Instance.new("TextButton", frame)
     slider.Size = UDim2.new(1, -20, 0, 30)
-    slider.Position = UDim2.new(0, 10, 0, 40)
+    slider.Position = UDim2.new(0, 10, 0, 45)
     slider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
     local sliderCorner = Instance.new("UICorner", slider)
     sliderCorner.CornerRadius = UDim.new(1, 0)
@@ -254,7 +236,7 @@ local function MakeSlider(text, min, max, getter, setter)
     local dragging = false
     local function update()
         local val = getter()
-        label.Text = text .. ": " .. math.floor(val)
+        label.Text = text .. ": " .. format(val)
         fill.Size = UDim2.new((val - min) / (max - min), 0, 1, 0)
     end
     
@@ -281,17 +263,29 @@ local function MakeSlider(text, min, max, getter, setter)
     return frame
 end
 
--- === СОЗДАНИЕ КОНТЕНТА ДЛЯ ВКЛАДОК ===
--- Контейнеры для каждой вкладки
+-- === КОНТЕЙНЕРЫ ВКЛАДОК ===
 local AimbotContainer = Instance.new("Frame")
 local VisualsContainer = Instance.new("Frame")
-local MiscContainer = Instance.new("Frame")
+AimbotContainer.Size = UDim2.new(1, 0, 1, 0)
+VisualsContainer.Size = UDim2.new(1, 0, 1, 0)
+AimbotContainer.BackgroundTransparency = 1
+VisualsContainer.BackgroundTransparency = 1
+AimbotContainer.Parent = ScrollingFrame
+VisualsContainer.Parent = ScrollingFrame
 
-for _, container in pairs({AimbotContainer, VisualsContainer, MiscContainer}) do
-    container.Size = UDim2.new(1, 0, 1, 0)
-    container.BackgroundTransparency = 1
-    container.Parent = ScrollingFrame
+-- Переносим скролл в контейнеры
+UIListLayout.Parent = nil
+
+local function setupContainer(container)
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = container
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 8)
+    return layout
 end
+
+local aimbotLayout = setupContainer(AimbotContainer)
+local visualsLayout = setupContainer(VisualsContainer)
 
 -- === AIMBOT ВКЛАДКА ===
 local AimbotToggle = MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
@@ -300,7 +294,7 @@ AimbotToggle.Parent = AimbotContainer
 local FOVSlider = MakeSlider("🎯 FOV RADIUS", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
 FOVSlider.Parent = AimbotContainer
 
-local SmoothSlider = MakeSlider("⚡ AIM SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
+local SmoothSlider = MakeSlider("⚡ AIM SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end, function(v) return math.floor(v) .. "%" end)
 SmoothSlider.Parent = AimbotContainer
 
 -- === VISUALS ВКЛАДКА ===
@@ -310,22 +304,15 @@ ESPToggle.Parent = VisualsContainer
 local ZoomToggle = MakeSwitch("🔍 ZOOM +30", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
 ZoomToggle.Parent = VisualsContainer
 
--- === MISC ВКЛАДКА ===
-local WallbangToggle = MakeSwitch("🧱 WALLBANG", function() return WallbangEnabled end, function(v) ToggleWallbang() end)
-WallbangToggle.Parent = MiscContainer
-
 -- === ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ===
 local function SelectTab(tabName)
     AimbotContainer.Visible = false
     VisualsContainer.Visible = false
-    MiscContainer.Visible = false
     
     AimbotTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     VisualsTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    MiscTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     AimbotTab.TextColor3 = Color3.fromRGB(200, 200, 200)
     VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-    MiscTab.TextColor3 = Color3.fromRGB(200, 200, 200)
     
     if tabName == "AIMBOT" then
         AimbotContainer.Visible = true
@@ -335,17 +322,11 @@ local function SelectTab(tabName)
         VisualsContainer.Visible = true
         VisualsTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
         VisualsTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-    elseif tabName == "MISC" then
-        MiscContainer.Visible = true
-        MiscTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-        MiscTab.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
 end
 
 AimbotTab.MouseButton1Click:Connect(function() SelectTab("AIMBOT") end)
 VisualsTab.MouseButton1Click:Connect(function() SelectTab("VISUALS") end)
-MiscTab.MouseButton1Click:Connect(function() SelectTab("MISC") end)
-
 SelectTab("AIMBOT")
 
 -- === FOV КРУГ ===
@@ -373,7 +354,7 @@ RunService.RenderStepped:Connect(function()
         UpdateESP()
     end
     
-    if AimbotEnabled and LocalPlayer.Character then
+    if AimbotEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health > 0 then
         local target = GetClosestVisiblePlayer()
         if target then
             DoAimbot(target)
@@ -389,9 +370,9 @@ end)
 -- Уведомление
 task.wait(1)
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Bulba Hub",
-    Text = "Готов! Aimbot не тригерит тиммейтов. FOV и плавность в настройках.",
+    Title = "Bulba Hub CLEAN",
+    Text = "Готов! Нажми S для меню. Wallbang УДАЛЁН. Zoom работает.",
     Duration = 5
 })
 
-print("Bulba Hub FULL FIXED загружен!")
+print("Bulba Hub CLEAN NO BUGS загружен!")
