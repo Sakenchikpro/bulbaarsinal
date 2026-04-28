@@ -83,7 +83,7 @@ local function ToggleFly()
         end)
     else
         if flyBodyVelocity then
-            flyBodyVelocity:Destroy()
+            pcall(function() flyBodyVelocity:Destroy() end)
             flyBodyVelocity = nil
         end
     end
@@ -134,7 +134,7 @@ local function DoAimbot(target)
     Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimSmoothness)
 end
 
--- === КРАСИВЫЙ ESP (ЛИНИИ + HP + ИМЯ) ===
+-- === КРАСИВЫЙ ESP (HIGHLIGHT + HP + ИМЯ) ===
 local espObjects = {}
 local function CreateESP(player)
     if not player.Character then return end
@@ -168,14 +168,7 @@ local function CreateESP(player)
     hpLabel.Font = Enum.Font.Gotham
     hpLabel.TextScaled = true
     
-    -- Линии от игрока к игроку (простой вариант через Frame)
-    local lineContainer = Instance.new("Frame")
-    lineContainer.Name = "LineContainer"
-    lineContainer.Size = UDim2.new(0, 0, 0, 0)
-    lineContainer.BackgroundTransparency = 1
-    lineContainer.Parent = ScreenGui
-    
-    espObjects[player] = {highlight, billboard, nameLabel, hpLabel, lineContainer}
+    espObjects[player] = {highlight, billboard, nameLabel, hpLabel}
 end
 
 local function UpdateESP()
@@ -205,7 +198,7 @@ local function UpdateESP()
             else
                 if espObjects[player] then
                     for _, obj in pairs(espObjects[player]) do
-                        pcall(obj.Destroy, obj)
+                        pcall(function() obj:Destroy() end)
                     end
                     espObjects[player] = nil
                 end
@@ -250,16 +243,7 @@ BannerText.TextSize = 35
 BannerText.Font = Enum.Font.GothamBold
 BannerText.RichText = true
 
--- Анимация баннера
-local bannerTween = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Size = UDim2.new(0, 60, 0, 60), Position = UDim2.new(0.02, 0, 0.05, 0)})
-bannerTween:Play()
-bannerTween.Completed:Connect(function()
-    BannerFrame:Destroy()
-    MenuFrame.Visible = true
-    FloatingIcon.Visible = true
-end)
-
--- === МЕНЮ ===
+-- === МЕНЮ (видимо сразу) ===
 MenuFrame.Parent = ScreenGui
 MenuFrame.Size = UDim2.new(0, 350, 0, 500)
 MenuFrame.Position = UDim2.new(0.02, 0, 0.1, 0)
@@ -402,8 +386,9 @@ local function MakeSlider(text, min, max, getter, setter)
         end
     end)
     
+    -- ФИКС: добавляем обработку мыши
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
     end)
@@ -510,9 +495,41 @@ stroke.Thickness = 2
 
 -- === ОСНОВНОЙ ЦИКЛ ===
 RunService.RenderStepped:Connect(function()
+    -- Обновляем ESP
+    UpdateESP()
+    
+    -- Aimbot логика
     if AimbotEnabled then
         FOVCircle.Size = UDim2.new(0, AimFOV * 2, 0, AimFOV * 2)
         FOVCircle.Position = UDim2.new(0.5, -AimFOV, 0.5, -AimFOV)
         FOVCircle.Visible = true
+        
+        local target = GetClosestVisiblePlayer()
+        if target then
+            DoAimbot(target)
+        end
     else
-        FOVCi
+        FOVCircle.Visible = false
+    end
+    
+    -- Speed обновление
+    if SpeedEnabled then
+        SetSpeed()
+    end
+    
+    -- Zoom обновление
+    if ZoomEnabled then
+        SetZoom()
+    end
+end)
+
+-- Анимация баннера
+local bannerTween = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Size = UDim2.new(0, 60, 0, 60), Position = UDim2.new(0.02, 0, 0.05, 0)})
+bannerTween:Play()
+bannerTween.Completed:Connect(function()
+    pcall(function() BannerFrame:Destroy() end)
+    MenuFrame.Visible = true
+    FloatingIcon.Visible = true
+end)
+
+print("✓ Bulba Hub Pro загружен!")
