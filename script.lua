@@ -1,6 +1,5 @@
--- Bulba Hub Pro | Arsenal ULTIMATE (BUGFIXED)
--- Работает: Aimbot, ESP, Zoom, Infinite Jump, Speed
--- Баннер исчезает, меню работает, иконка плавает
+-- Bulba Hub Pro | FINAL FIXED
+-- ВСЁ РАБОТАЕТ: баннер с анимацией, аимбот, esp, меню, иконка
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -68,7 +67,6 @@ local function GetClosestVisiblePlayer()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            -- Не трогаем тиммейтов
             if player.Team == LocalPlayer.Team then continue end
             
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -78,7 +76,6 @@ local function GetClosestVisiblePlayer()
             local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
             if not onScreen then continue end
             
-            -- Проверка видимости
             local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).unit * 1000)
             local hit = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
             local isVisible = hit and hit:IsDescendantOf(player.Character)
@@ -158,7 +155,6 @@ local function UpdateESP()
                         espObjects[player][4].Text = string.format("%.0f%% HP", hpPercent)
                     end)
                     
-                    -- Проверка видимости для цвета
                     local head = player.Character:FindFirstChild("Head")
                     local isVisible = false
                     if head then
@@ -183,13 +179,13 @@ local function UpdateESP()
     end
 end
 
--- === ==== GUI ==== === --
+-- === GUI ===
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
 ScreenGui.ResetOnSpawn = false
 
--- === БАННЕР (ИСПРАВЛЕН) ===
+-- === БАННЕР С ПЛАВНОЙ АНИМАЦИЕЙ ===
 local BannerFrame = Instance.new("Frame")
 BannerFrame.Parent = ScreenGui
 BannerFrame.Size = UDim2.new(0, 320, 0, 180)
@@ -211,22 +207,22 @@ BannerText.Font = Enum.Font.GothamBold
 BannerText.RichText = true
 BannerText.BackgroundTransparency = 1
 
--- Анимация исчезновения
+-- Анимация уменьшения
 task.wait(2)
-local fadeOut = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-    BackgroundTransparency = 1,
+local shrink = TweenService:Create(BannerFrame, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+    Size = UDim2.new(0, 70, 0, 70),
     Position = UDim2.new(0.02, 0, 0.05, 0)
 })
-local textFade = TweenService:Create(BannerText, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-    TextTransparency = 1
+local textShrink = TweenService:Create(BannerText, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+    TextSize = 12
 })
-local strokeFade = TweenService:Create(bannerStroke, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+local strokeShrink = TweenService:Create(bannerStroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
     Thickness = 0
 })
 
-fadeOut:Play()
-textFade:Play()
-strokeFade:Play()
+shrink:Play()
+textShrink:Play()
+strokeShrink:Play()
 
 -- === МЕНЮ ===
 local MenuFrame = Instance.new("Frame")
@@ -240,7 +236,6 @@ MenuFrame.Visible = false
 local menuCorner = Instance.new("UICorner", MenuFrame)
 menuCorner.CornerRadius = UDim.new(0, 12)
 
--- Заголовок
 local Title = Instance.new("TextLabel", MenuFrame)
 Title.Size = UDim2.new(1, 0, 0, 45)
 Title.Text = "BULBA HUB PRO"
@@ -249,7 +244,6 @@ Title.TextSize = 22
 Title.Font = Enum.Font.GothamBold
 Title.BackgroundTransparency = 1
 
--- Кнопка сворачивания
 local MinimizeBtn = Instance.new("TextButton", MenuFrame)
 MinimizeBtn.Size = UDim2.new(0, 40, 0, 40)
 MinimizeBtn.Position = UDim2.new(1, -45, 0, 5)
@@ -257,10 +251,6 @@ MinimizeBtn.Text = "−"
 MinimizeBtn.TextSize = 25
 MinimizeBtn.BackgroundTransparency = 1
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.MouseButton1Click:Connect(function()
-    MenuFrame.Visible = false
-    FloatingIcon.Visible = true
-end)
 
 -- Вкладки
 local TabBar = Instance.new("Frame", MenuFrame)
@@ -311,7 +301,6 @@ local function MakeSwitch(text, getter, setter)
         btn.BackgroundColor3 = getter() and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(55, 55, 70)
     end)
     
-    btn.Parent = ScrollingFrame
     return btn
 end
 
@@ -367,54 +356,69 @@ local function MakeSlider(text, min, max, getter, setter)
     end)
     
     update()
-    frame.Parent = ScrollingFrame
     return frame
 end
 
--- === СОЗДАНИЕ КНОПОК ===
-MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
-MakeSlider("📡 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
-MakeSlider("⚡ SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
+-- === СОЗДАНИЕ КНОПОК ДЛЯ COMBOT ===
+local combotContainer = Instance.new("Frame")
+combotContainer.Size = UDim2.new(1, 0, 1, 0)
+combotContainer.BackgroundTransparency = 1
+combotContainer.Parent = ScrollingFrame
 
-MakeSwitch("👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
-MakeSwitch("🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
+local aimbotBtn = MakeSwitch("🎯 AIMBOT", function() return AimbotEnabled end, function(v) AimbotEnabled = v end)
+aimbotBtn.Parent = combotContainer
 
-MakeSwitch("🦘 INFINITE JUMP", function() return InfiniteJumpEnabled end, function(v) ToggleInfiniteJump() end)
-MakeSwitch("⚡ SPEED", function() return SpeedEnabled end, function(v) SpeedEnabled = v; SetSpeed() end)
+local fovSlider = MakeSlider("📡 FOV", 50, 500, function() return AimFOV end, function(v) AimFOV = v end)
+fovSlider.Parent = combotContainer
+
+local smoothSlider = MakeSlider("⚡ SMOOTHNESS", 10, 80, function() return AimSmoothness * 100 end, function(v) AimSmoothness = v / 100 end)
+smoothSlider.Parent = combotContainer
+
+-- === СОЗДАНИЕ КНОПОК ДЛЯ VISUAL ===
+local visualContainer = Instance.new("Frame")
+visualContainer.Size = UDim2.new(1, 0, 1, 0)
+visualContainer.BackgroundTransparency = 1
+visualContainer.Parent = ScrollingFrame
+visualContainer.Visible = false
+
+local espBtn = MakeSwitch("👁️ ESP", function() return ESPEnabled end, function(v) ESPEnabled = v end)
+espBtn.Parent = visualContainer
+
+local zoomBtn = MakeSwitch("🔍 ZOOM", function() return ZoomEnabled end, function(v) ZoomEnabled = v; SetZoom() end)
+zoomBtn.Parent = visualContainer
+
+-- === СОЗДАНИЕ КНОПОК ДЛЯ EXTRA ===
+local extraContainer = Instance.new("Frame")
+extraContainer.Size = UDim2.new(1, 0, 1, 0)
+extraContainer.BackgroundTransparency = 1
+extraContainer.Parent = ScrollingFrame
+extraContainer.Visible = false
+
+local jumpBtn = MakeSwitch("🦘 INFINITE JUMP", function() return InfiniteJumpEnabled end, function(v) ToggleInfiniteJump() end)
+jumpBtn.Parent = extraContainer
+
+local speedBtn = MakeSwitch("⚡ SPEED", function() return SpeedEnabled end, function(v) SpeedEnabled = v; SetSpeed() end)
+speedBtn.Parent = extraContainer
 
 -- === ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ===
 local function selectTab(tab)
-    for _, child in ipairs(ScrollingFrame:GetChildren()) do
-        if child:IsA("TextButton") or child:IsA("Frame") then
-            child.Visible = false
-        end
-    end
+    combotContainer.Visible = false
+    visualContainer.Visible = false
+    extraContainer.Visible = false
     
     ComboTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     VisualTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     ExtraTab.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
     
     if tab == "COMBOT" then
+        combotContainer.Visible = true
         ComboTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-        for i, child in ipairs(ScrollingFrame:GetChildren()) do
-            if i <= 3 then child.Visible = true end
-        end
     elseif tab == "VISUAL" then
+        visualContainer.Visible = true
         VisualTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-        local count = 0
-        for _, child in ipairs(ScrollingFrame:GetChildren()) do
-            if child:IsA("TextButton") and (child.Text:find("ESP") or child.Text:find("ZOOM")) then
-                child.Visible = true
-                count = count + 1
-            end
-        end
     elseif tab == "EXTRA" then
+        extraContainer.Visible = true
         ExtraTab.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-        for _, child in ipairs(ScrollingFrame:GetChildren()) do
-            if child:IsA("TextButton") and (child.Text:find("JUMP") or child.Text:find("SPEED")) then
-                child.Visible = true
-            end
-        end
     end
 end
 
@@ -437,13 +441,20 @@ local iconCorner = Instance.new("UICorner", FloatingIcon)
 iconCorner.CornerRadius = UDim.new(1, 0)
 FloatingIcon.Visible = false
 
+-- Открытие меню по иконке
 FloatingIcon.MouseButton1Click:Connect(function()
     MenuFrame.Visible = true
     FloatingIcon.Visible = false
 end)
 
+-- Сворачивание меню
+MinimizeBtn.MouseButton1Click:Connect(function()
+    MenuFrame.Visible = false
+    FloatingIcon.Visible = true
+end)
+
 -- === ПОКАЗ МЕНЮ ПОСЛЕ БАННЕРА ===
-fadeOut.Completed:Connect(function()
+shrink.Completed:Connect(function()
     BannerFrame:Destroy()
     MenuFrame.Visible = true
     FloatingIcon.Visible = true
@@ -480,4 +491,4 @@ RunService.RenderStepped:Connect(function()
     SetSpeed()
 end)
 
-print("✅ Bulba Hub Pro загружен! Баннер исчезает, всё работает.")
+print("✅ Bulba Hub Pro FINAL загружен!")
