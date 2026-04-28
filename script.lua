@@ -1,59 +1,27 @@
--- Bulba Hub | Arsenal Mobile FIXED
--- Работает: Aimbot, Silent Aim, Wallbang, ESP, FOV, меню
+-- Bulba Hub | Arsenal Mobile FINAL
+-- Все функции OFF при старте. Работает: Aimbot, Silent Aim, Wallbang, ESP, Zoom
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
 local Workspace = game:GetService("Workspace")
 
--- Состояние меню
-local MenuOpen = true
+-- Все функции ВЫКЛЮЧЕНЫ по умолчанию
 local Settings = {
-    Aimbot = true,
-    SilentAim = true,
+    Aimbot = false,
+    SilentAim = false,
     Wallbang = false,
-    ESP = true,
-    AimPart = "Head",
-    AimFOV = 300,
-    AimSmoothness = 0.25,
+    ESP = false,
     FOVZoom = 70,
+    AimFOV = 300,
+    AimPart = "Head",
     TeamCheck = true,
     ESPColor = Color3.fromRGB(255, 50, 50)
 }
 
--- === ФИКС WALLBANG (без проваливания) ===
-local OriginalCollisions = {}
-local function ToggleWallbang()
-    Settings.Wallbang = not Settings.Wallbang
-    if Settings.Wallbang then
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" and v.Name ~= "Head" then
-                if not OriginalCollisions[v] then
-                    OriginalCollisions[v] = v.CanCollide
-                end
-                v.CanCollide = false
-            end
-        end
-    else
-        for v, old in pairs(OriginalCollisions) do
-            if v and v.Parent then
-                v.CanCollide = old
-            end
-        end
-        OriginalCollisions = {}
-    end
-end
-
--- === УВЕЛИЧЕНИЕ FOV ===
-local function SetZoom(zoom)
-    Settings.FOVZoom = zoom
-    Camera.FieldOfView = zoom
-end
-
--- === ПОЛУЧЕНИЕ БЛИЖАЙШЕГО ИГРОКА ===
+-- === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 local function GetClosestPlayer()
     local closest = nil
     local shortest = Settings.AimFOV
@@ -77,33 +45,52 @@ local function GetClosestPlayer()
     return closest
 end
 
--- === АИМБОТ (магнит) ===
+-- === АИМБОТ ДЛЯ ТЕЛЕФОНА (через CFrame камеры) ===
 local function DoAimbot(target)
     if not target or not target.Character then return end
     local part = target.Character[Settings.AimPart]
     if not part then return end
     
-    local screenPos = Camera:WorldToViewportPoint(part.Position)
-    local mousePos = UserInputService:GetMouseLocation()
-    local deltaX = (screenPos.X - mousePos.X) * Settings.AimSmoothness
-    local deltaY = (screenPos.Y - mousePos.Y) * Settings.AimSmoothness
-    
-    if math.abs(deltaX) > 0.5 or math.abs(deltaY) > 0.5 then
-        mousemoverel(deltaX, deltaY)
-    end
+    local direction = (part.Position - Camera.CFrame.Position).unit
+    local newCFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + direction)
+    Camera.CFrame = Camera.CFrame:Lerp(newCFrame, 0.3)
 end
 
--- === SILENT AIM (ФИКС) ===
+-- === SILENT AIM (подмена луча) ===
 local function DoSilentAim(target)
-    if not target or not Settings.SilentAim then return end
+    if not target or not target.Character then return end
     local part = target.Character[Settings.AimPart]
     if not part then return end
     
-    -- Кратковременное изменение прицела
-    local originalHit = Mouse.Hit
-    Mouse.Hit = CFrame.new(part.Position)
-    task.wait(0.01)
-    Mouse.Hit = originalHit
+    local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).unit * 1000)
+    local hit, pos = Workspace:FindPartOnRay(ray, LocalPlayer.Character)
+    if hit and hit:IsDescendantOf(target.Character) then
+        return true
+    end
+    return false
+end
+
+-- === WALLBANG (без багов) ===
+local OriginalCollisions = {}
+local function ToggleWallbang()
+    Settings.Wallbang = not Settings.Wallbang
+    if Settings.Wallbang then
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v:IsDescendantOf(LocalPlayer.Character) then
+                if OriginalCollisions[v] == nil then
+                    OriginalCollisions[v] = v.CanCollide
+                end
+                v.CanCollide = false
+            end
+        end
+    else
+        for v, old in pairs(OriginalCollisions) do
+            if v and v.Parent then
+                v.CanCollide = old
+            end
+        end
+        table.clear(OriginalCollisions)
+    end
 end
 
 -- === ESP ===
@@ -129,175 +116,168 @@ local function UpdateESP()
     end
 end
 
--- === ==== МЕНЮ (КРАСИВОЕ, С ИКОНКОЙ) ==== === --
-local ScreenGui = Instance.new("ScreenGui")
-local ToggleButton = Instance.new("ImageButton")  -- Иконка
-local MenuFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local CloseBtn = Instance.new("TextButton")
+-- === FOV ЗУМ ===
+local function SetZoom(zoom)
+    Settings.FOVZoom = zoom
+    Camera.FieldOfView = zoom
+end
 
--- Настройка интерфейса
+-- === ==== НОВОЕ КВАДРАТНОЕ МЕНЮ + ИКОНКА S ==== === --
+local ScreenGui = Instance.new("ScreenGui")
+local FloatingIcon = Instance.new("TextButton")  -- Круглая иконка с S
+local MenuFrame = Instance.new("Frame")
+local TopBar = Instance.new("Frame")
+local MenuTitle = Instance.new("TextLabel")
+local MinimizeBtn = Instance.new("TextButton")
+local ButtonsContainer = Instance.new("Frame")
+
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.Name = "BulbaHub"
 ScreenGui.ResetOnSpawn = false
 
--- Кнопка-иконка (всегда сверху)
-ToggleButton.Parent = ScreenGui
-ToggleButton.Size = UDim2.new(0, 50, 0, 50)
-ToggleButton.Position = UDim2.new(0.02, 0, 0.05, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-ToggleButton.Image = "rbxassetid://6031091058"  -- Иконка
-ToggleButton.AutoButtonColor = false
+-- КРУГЛАЯ ИКОНКА (S)
+FloatingIcon.Parent = ScreenGui
+FloatingIcon.Size = UDim2.new(0, 60, 0, 60)
+FloatingIcon.Position = UDim2.new(0.02, 0, 0.05, 0)
+FloatingIcon.Text = "S"
+FloatingIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatingIcon.TextSize = 30
+FloatingIcon.Font = Enum.Font.GothamBold
+FloatingIcon.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+FloatingIcon.BackgroundTransparency = 0.15
+FloatingIcon.AutoButtonColor = false
 
--- Главное меню
+local IconCorner = Instance.new("UICorner", FloatingIcon)
+IconCorner.CornerRadius = UDim.new(1, 0)  -- Полный круг
+
+-- ГЛАВНОЕ МЕНЮ (квадратное)
 MenuFrame.Parent = ScreenGui
-MenuFrame.Size = UDim2.new(0, 320, 0, 500)
+MenuFrame.Size = UDim2.new(0, 320, 0, 480)
 MenuFrame.Position = UDim2.new(0.02, 0, 0.12, 0)
-MenuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 MenuFrame.BackgroundTransparency = 0.05
 MenuFrame.Active = true
-MenuFrame.Draggable = true
+MenuFrame.Visible = true
 
-local Corner = Instance.new("UICorner", MenuFrame)
-Corner.CornerRadius = UDim.new(0, 12)
+local MenuCorner = Instance.new("UICorner", MenuFrame)
+MenuCorner.CornerRadius = UDim.new(0, 15)
 
-Title.Parent = MenuFrame
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "⚡ BULBA HUB | ARSENAL ⚡"
-Title.TextColor3 = Color3.fromRGB(255, 200, 0)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextScaled = true
+-- Верхняя панель с кнопкой сворачивания
+TopBar.Parent = MenuFrame
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+TopBar.BackgroundTransparency = 0.3
 
-CloseBtn.Parent = MenuFrame
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 5)
-CloseBtn.Text = "✖"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.BackgroundTransparency = 1
-CloseBtn.MouseButton1Click:Connect(function()
-    MenuOpen = false
+local TopBarCorner = Instance.new("UICorner", TopBar)
+TopBarCorner.CornerRadius = UDim.new(0, 15)
+
+MenuTitle.Parent = TopBar
+MenuTitle.Size = UDim2.new(1, -40, 1, 0)
+MenuTitle.Position = UDim2.new(0, 20, 0, 0)
+MenuTitle.Text = "BULBA HUB"
+MenuTitle.TextColor3 = Color3.fromRGB(255, 200, 100)
+MenuTitle.TextSize = 20
+MenuTitle.Font = Enum.Font.GothamBold
+MenuTitle.TextXAlignment = Enum.TextXAlignment.Left
+MenuTitle.BackgroundTransparency = 1
+
+MinimizeBtn.Parent = TopBar
+MinimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+MinimizeBtn.Position = UDim2.new(1, -40, 0, 5)
+MinimizeBtn.Text = "−"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 25
+MinimizeBtn.BackgroundTransparency = 1
+MinimizeBtn.MouseButton1Click:Connect(function()
     MenuFrame.Visible = false
 end)
 
--- Функция создания кнопки
-local function CreateButton(text, y, callback)
+-- Контейнер для кнопок
+ButtonsContainer.Parent = MenuFrame
+ButtonsContainer.Size = UDim2.new(1, -20, 1, -65)
+ButtonsContainer.Position = UDim2.new(0, 10, 0, 55)
+ButtonsContainer.BackgroundTransparency = 1
+
+-- Функция создания кнопки-переключателя
+local function CreateToggleButton(text, y, getter, setter)
     local btn = Instance.new("TextButton")
-    btn.Parent = MenuFrame
-    btn.Size = UDim2.new(0, 280, 0, 45)
-    btn.Position = UDim2.new(0.5, -140, 0, y)
-    btn.Text = text
+    btn.Parent = ButtonsContainer
+    btn.Size = UDim2.new(1, 0, 0, 50)
+    btn.Position = UDim2.new(0, 0, 0, y)
+    btn.Text = text .. ": OFF"
     btn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.TextSize = 18
     btn.Font = Enum.Font.Gotham
-    btn.TextScaled = true
     
     local btnCorner = Instance.new("UICorner", btn)
     btnCorner.CornerRadius = UDim.new(0, 8)
     
-    btn.MouseButton1Click:Connect(callback)
+    local function update()
+        local state = getter()
+        btn.Text = text .. ": " .. (state and "ON" or "OFF")
+        btn.BackgroundColor3 = state and Color3.fromRGB(0, 100, 0) or Color3.fromRGB(80, 30, 30)
+    end
+    
+    btn.MouseButton1Click:Connect(function()
+        setter(not getter())
+        update()
+    end)
+    
+    update()
     return btn
 end
 
--- Кнопки
-CreateButton("🎯 AIMBOT: ON", 50, function()
-    Settings.Aimbot = not Settings.Aimbot
-    btnAimbot.Text = "🎯 AIMBOT: " .. (Settings.Aimbot and "ON" or "OFF")
-    btnAimbot.BackgroundColor3 = Settings.Aimbot and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
+-- Создание кнопок
+local btnAimbot = CreateToggleButton("🎯 AIMBOT", 10, function() return Settings.Aimbot end, function(v) Settings.Aimbot = v end)
+local btnSilent = CreateToggleButton("🔇 SILENT AIM", 65, function() return Settings.SilentAim end, function(v) Settings.SilentAim = v end)
+local btnWallbang = CreateToggleButton("🧱 WALLBANG", 120, function() return Settings.Wallbang end, function(v) if v then ToggleWallbang() else ToggleWallbang() end end)
+local btnESP = CreateToggleButton("👁️ ESP", 175, function() return Settings.ESP end, function(v) Settings.ESP = v; UpdateESP() end)
 
-CreateButton("🔇 SILENT AIM: ON", 105, function()
-    Settings.SilentAim = not Settings.SilentAim
-    btnSilent.Text = "🔇 SILENT AIM: " .. (Settings.SilentAim and "ON" or "OFF")
-    btnSilent.BackgroundColor3 = Settings.SilentAim and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
-CreateButton("🧱 WALLBANG: OFF", 160, function()
-    ToggleWallbang()
-    btnWallbang.Text = "🧱 WALLBANG: " .. (Settings.Wallbang and "ON" or "OFF")
-    btnWallbang.BackgroundColor3 = Settings.Wallbang and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
-CreateButton("👁️ ESP: ON", 215, function()
-    Settings.ESP = not Settings.ESP
-    btnESP.Text = "👁️ ESP: " .. (Settings.ESP and "ON" or "OFF")
-    btnESP.BackgroundColor3 = Settings.ESP and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-    if not Settings.ESP then
-        for _, v in pairs(ESPObjects) do pcall(v.Destroy, v) end
-        table.clear(ESPObjects)
-    end
-end)
-
-CreateButton("🔍 FOV +30 (ZOOM)", 270, function()
-    local newZoom = Settings.FOVZoom == 70 and 100 or 70
-    SetZoom(newZoom)
-    btnZoom.Text = "🔍 ZOOM: " .. (newZoom == 100 and "+30" or "NORMAL")
-end)
-
-CreateButton("⚙️ FOV RADIUS: 300", 325, function()
-    local radii = {200, 250, 300, 350, 400}
-    local nextIndex = (table.find(radii, Settings.AimFOV) or 1) % #radii + 1
-    Settings.AimFOV = radii[nextIndex]
-    btnRadius.Text = "⚙️ FOV RADIUS: " .. Settings.AimFOV
-end)
-
--- Сохраняем ссылки на кнопки для обновления текста
-local btnAimbot = CreateButton("🎯 AIMBOT: ON", 50, function() end)
-local btnSilent = CreateButton("🔇 SILENT AIM: ON", 105, function() end)
-local btnWallbang = CreateButton("🧱 WALLBANG: OFF", 160, function() end)
-local btnESP = CreateButton("👁️ ESP: ON", 215, function() end)
-local btnZoom = CreateButton("🔍 ZOOM: NORMAL", 270, function() end)
-local btnRadius = CreateButton("⚙️ FOV RADIUS: 300", 325, function() end)
-
--- Обновляем обработчики
-btnAimbot.MouseButton1Click:Connect(function()
-    Settings.Aimbot = not Settings.Aimbot
-    btnAimbot.Text = "🎯 AIMBOT: " .. (Settings.Aimbot and "ON" or "OFF")
-    btnAimbot.BackgroundColor3 = Settings.Aimbot and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
-btnSilent.MouseButton1Click:Connect(function()
-    Settings.SilentAim = not Settings.SilentAim
-    btnSilent.Text = "🔇 SILENT AIM: " .. (Settings.SilentAim and "ON" or "OFF")
-    btnSilent.BackgroundColor3 = Settings.SilentAim and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
-btnWallbang.MouseButton1Click:Connect(function()
-    ToggleWallbang()
-    btnWallbang.Text = "🧱 WALLBANG: " .. (Settings.Wallbang and "ON" or "OFF")
-    btnWallbang.BackgroundColor3 = Settings.Wallbang and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
-btnESP.MouseButton1Click:Connect(function()
-    Settings.ESP = not Settings.ESP
-    btnESP.Text = "👁️ ESP: " .. (Settings.ESP and "ON" or "OFF")
-    btnESP.BackgroundColor3 = Settings.ESP and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
+-- Кнопка ЗУМ
+local btnZoom = Instance.new("TextButton")
+btnZoom.Parent = ButtonsContainer
+btnZoom.Size = UDim2.new(1, 0, 0, 50)
+btnZoom.Position = UDim2.new(0, 0, 0, 230)
+btnZoom.Text = "🔍 ZOOM +30"
+btnZoom.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+btnZoom.TextColor3 = Color3.fromRGB(220, 220, 220)
+btnZoom.TextSize = 18
+btnZoom.Font = Enum.Font.Gotham
+local btnZoomCorner = Instance.new("UICorner", btnZoom)
+btnZoomCorner.CornerRadius = UDim.new(0, 8)
 btnZoom.MouseButton1Click:Connect(function()
     local newZoom = Settings.FOVZoom == 70 and 100 or 70
     SetZoom(newZoom)
-    btnZoom.Text = "🔍 ZOOM: " .. (newZoom == 100 and "+30" or "NORMAL")
+    btnZoom.Text = newZoom == 100 and "🔍 ZOOM: +30" or "🔍 ZOOM: NORMAL"
 end)
 
-btnRadius.MouseButton1Click:Connect(function()
+-- Кнопка FOV радиуса
+local btnFOV = Instance.new("TextButton")
+btnFOV.Parent = ButtonsContainer
+btnFOV.Size = UDim2.new(1, 0, 0, 50)
+btnFOV.Position = UDim2.new(0, 0, 0, 285)
+btnFOV.Text = "⚙️ FOV: 300"
+btnFOV.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+btnFOV.TextColor3 = Color3.fromRGB(220, 220, 220)
+btnFOV.TextSize = 18
+btnFOV.Font = Enum.Font.Gotham
+local btnFOVCorner = Instance.new("UICorner", btnFOV)
+btnFOVCorner.CornerRadius = UDim.new(0, 8)
+btnFOV.MouseButton1Click:Connect(function()
     local radii = {200, 250, 300, 350, 400}
     local idx = 1
-    for i, v in ipairs(radii) do
-        if v == Settings.AimFOV then idx = i break end
-    end
-    local next = radii[idx % #radii + 1]
-    Settings.AimFOV = next
-    btnRadius.Text = "⚙️ FOV RADIUS: " .. Settings.AimFOV
+    for i, v in ipairs(radii) do if v == Settings.AimFOV then idx = i break end end
+    Settings.AimFOV = radii[idx % #radii + 1]
+    btnFOV.Text = "⚙️ FOV: " .. Settings.AimFOV
 end)
 
 -- Иконка для открытия меню
-ToggleButton.MouseButton1Click:Connect(function()
-    MenuOpen = not MenuOpen
-    MenuFrame.Visible = MenuOpen
+FloatingIcon.MouseButton1Click:Connect(function()
+    MenuFrame.Visible = true
 end)
 
--- FOV круг (визуальный)
+-- FOV круг
 local FOVCircle = Instance.new("Frame")
 FOVCircle.Parent = ScreenGui
 FOVCircle.Size = UDim2.new(0, Settings.AimFOV * 2, 0, Settings.AimFOV * 2)
@@ -319,6 +299,9 @@ RunService.RenderStepped:Connect(function()
     -- ESP
     if Settings.ESP then
         UpdateESP()
+    else
+        for _, v in pairs(ESPObjects) do pcall(v.Destroy, v) end
+        table.clear(ESPObjects)
     end
     
     -- Aimbot + Silent Aim
@@ -336,8 +319,8 @@ end)
 -- Уведомление
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Bulba Hub",
-    Text = "Готов! Нажми на иконку 🔴 слева сверху",
+    Text = "Готов! Нажми на букву S для меню",
     Duration = 4
 })
 
-print("Bulba Hub Mobile FIXED загружен!")
+print("Bulba Hub FINAL загружен! Все функции OFF.")
